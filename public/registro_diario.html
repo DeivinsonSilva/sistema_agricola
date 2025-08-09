@@ -14,7 +14,7 @@
     #lista-trabalhadores-ativos { list-style-type: none; padding: 0; }
     #lista-trabalhadores-ativos li { padding: 8px; border-bottom: 1px solid #eee; font-size: 15px; }
     label { display: block; margin-top: 15px; font-weight: 600; }
-    select, input { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+    select, input { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; background-color: white; }
     .checkbox-container { display: flex; align-items: center; margin-top: 15px; }
     #marcar-falta { width: auto; margin-right: 10px; }
     button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: background-color 0.2s; }
@@ -58,9 +58,11 @@
           </div>
           <div id="producao-container">
             <label for="fazenda">Fazenda:</label>
-            <input list="lista-fazendas" id="fazenda"><datalist id="lista-fazendas"></datalist>
+            <select id="fazenda" required></select>
+            
             <label for="servico">Serviço:</label>
-            <input list="lista-servicos" id="servico"><datalist id="lista-servicos"></datalist>
+            <select id="servico" required></select>
+
             <label for="producao">Produção:</label>
             <input type="number" id="producao" step="0.01">
             <label for="preco">Preço (R$):</label>
@@ -88,6 +90,7 @@
   </div>
   <script>
     let todosTrabalhadores = [];
+    let todosServicos = [];
     let registrosDoDia = []; 
     const dataInput = document.getElementById('data-registro');
     const form = document.getElementById('registro-form');
@@ -98,6 +101,9 @@
     const producaoContainer = document.getElementById('producao-container');
     const tabelaBody = document.querySelector('#tabela-registros tbody');
     const enviarBtn = document.getElementById('enviar-dados');
+    const fazendaSelect = document.getElementById('fazenda');
+    const servicoSelect = document.getElementById('servico');
+    const precoInput = document.getElementById('preco');
 
     function setDefaultDate() {
       dataInput.value = new Date().toISOString().split('T')[0];
@@ -112,13 +118,19 @@
             ]);
             todosTrabalhadores = await trabalhadoresRes.json();
             const fazendas = await fazendasRes.json();
-            const servicos = await servicosRes.json();
+            todosServicos = await servicosRes.json(); // Armazena todos os serviços
 
-            const listaFazendas = document.getElementById('lista-fazendas');
-            fazendas.filter(f => f.ativa).forEach(f => listaFazendas.innerHTML += `<option value="${f.nome}">`);
+            // MUDANÇA AQUI: Popula o <select> de fazendas
+            fazendaSelect.innerHTML = '<option value="">Selecione uma fazenda</option>';
+            fazendas.filter(f => f.ativa).forEach(f => {
+                fazendaSelect.innerHTML += `<option value="${f.nome}">${f.nome}</option>`;
+            });
 
-            const listaServicos = document.getElementById('lista-servicos');
-            servicos.filter(s => s.ativo).forEach(s => listaServicos.innerHTML += `<option value="${s.nome}">`);
+            // MUDANÇA AQUI: Popula o <select> de serviços
+            servicoSelect.innerHTML = '<option value="">Selecione um serviço</option>';
+            todosServicos.filter(s => s.ativo).forEach(s => {
+                servicoSelect.innerHTML += `<option value="${s.nome}" data-preco="${s.preco}">${s.nome}</option>`;
+            });
             
             atualizarListaTrabalhadores();
         } catch (error) {
@@ -170,6 +182,17 @@
       atualizarListaTrabalhadores();
     }
     
+    // MUDANÇA AQUI: Listener para preencher o preço automaticamente
+    servicoSelect.addEventListener('change', (e) => {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        const preco = selectedOption.dataset.preco;
+        if (preco) {
+            precoInput.value = parseFloat(preco).toFixed(2);
+        } else {
+            precoInput.value = '';
+        }
+    });
+
     window.addEventListener('DOMContentLoaded', () => {
       setDefaultDate();
       carregarDadosIniciais();
@@ -184,14 +207,15 @@
       const isFalta = faltaCheckbox.checked;
       registrosDoDia.push({
         data: dataInput.value, nome, status: isFalta ? 'Falta' : 'Presente',
-        detalhes: isFalta ? document.getElementById('motivo-falta').value : document.getElementById('servico').value,
-        fazenda: isFalta ? null : document.getElementById('fazenda').value,
+        detalhes: isFalta ? document.getElementById('motivo-falta').value : servicoSelect.value,
+        fazenda: isFalta ? null : fazendaSelect.value,
         producao: isFalta ? null : parseFloat(document.getElementById('producao').value) || 0,
-        preco: isFalta ? null : parseFloat(document.getElementById('preco').value) || 0,
+        preco: isFalta ? null : parseFloat(precoInput.value) || 0,
       });
       atualizarTabelaRegistros();
       atualizarListaTrabalhadores();
       form.reset();
+      precoInput.value = ''; // Limpa o campo de preço
       handleFaltaToggle();
     });
 

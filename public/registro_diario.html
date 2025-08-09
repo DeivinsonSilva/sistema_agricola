@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Trabalho Diário</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 1200px; margin: auto; }
+    h1, h2, h3 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    .main-layout { display: flex; flex-wrap: wrap; gap: 40px; margin-top: 20px; }
+    .trabalhadores-disponiveis { flex: 1; min-width: 200px; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .formulario-registro { flex: 3; min-width: 300px; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    #lista-trabalhadores-ativos { list-style-type: none; padding: 0; }
+    #lista-trabalhadores-ativos li { padding: 8px; border-bottom: 1px solid #eee; font-size: 15px; }
+    label { display: block; margin-top: 15px; font-weight: 600; }
+    select, input { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+    .checkbox-container { display: flex; align-items: center; margin-top: 15px; }
+    #marcar-falta { width: auto; margin-right: 10px; }
+    button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: background-color 0.2s; }
+    button[type="submit"] { background-color: #007BFF; color: white; width: 100%; }
+    #enviar-dados { background-color: #28a745; color: white; width: 100%; font-size: 16px; }
+    table { margin-top: 30px; border-collapse: collapse; width: 100%; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #ccc; padding: 12px; text-align: left; font-size: 14px; }
+    th { background-color: #e9ecef; }
+    td[contenteditable="true"] { background-color: #fefde8; cursor: text; }
+    .hidden { display: none; }
+    .row-falta { background-color: #fff3f3; color: #a94442; }
+    .remove-btn { background-color: #dc3545; color: white; padding: 5px 10px; font-size: 12px; }
+    .link-voltar { display: inline-block; margin-bottom: 20px; color: #0056b3; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="link-voltar">&larr; Voltar ao Painel</a>
+    <h1>Registro de Trabalho Diário</h1>
+    <section>
+      <h2>1. Selecione a Data do Registro</h2>
+      <input type="date" id="data-registro">
+    </section>
+    <div class="main-layout">
+      <aside class="trabalhadores-disponiveis">
+        <h3>Trabalhadores Disponíveis</h3>
+        <ul id="lista-trabalhadores-ativos"><li>Carregando...</li></ul>
+      </aside>
+      <main class="formulario-registro">
+        <h3>2. Lançar Atividade</h3>
+        <form id="registro-form">
+          <label for="nome-trabalhador">Nome do Trabalhador:</label>
+          <select id="nome-trabalhador" required></select>
+          <div class="checkbox-container">
+            <input type="checkbox" id="marcar-falta">
+            <label for="marcar-falta" style="margin-top: 0;">Marcar como Falta</label>
+          </div>
+          <div id="motivo-falta-container" class="hidden">
+            <label for="motivo-falta">Motivo da Falta:</label>
+            <select id="motivo-falta"><option>Justificada</option><option>Não Justificada</option></select>
+          </div>
+          <div id="producao-container">
+            <label for="fazenda">Fazenda:</label>
+            <input list="lista-fazendas" id="fazenda"><datalist id="lista-fazendas"></datalist>
+            <label for="servico">Serviço:</label>
+            <input list="lista-servicos" id="servico"><datalist id="lista-servicos"></datalist>
+            <label for="producao">Produção:</label>
+            <input type="number" id="producao" step="0.01">
+            <label for="preco">Preço (R$):</label>
+            <input type="number" id="preco" step="0.01">
+          </div>
+          <button type="submit">Adicionar à Lista</button>
+        </form>
+      </main>
+    </div>
+    <section>
+      <h2>3. Resumo do Dia</h2>
+      <table id="tabela-registros">
+        <thead>
+          <tr>
+            <th>Nome</th><th>Status</th><th>Fazenda</th><th>Serviço/Motivo</th><th>Produção</th><th>Preço Unit.</th><th>Total (R$)</th><th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    <section>
+        <h2>4. Finalizar</h2>
+        <button id="enviar-dados">Enviar Registros do Dia e Limpar</button>
+    </section>
+  </div>
+  <script>
+    let todosTrabalhadores = [];
+    let registrosDoDia = []; 
+    const dataInput = document.getElementById('data-registro');
+    const form = document.getElementById('registro-form');
+    const nomeSelect = document.getElementById('nome-trabalhador');
+    const listaAtivosUl = document.getElementById('lista-trabalhadores-ativos');
+    const faltaCheckbox = document.getElementById('marcar-falta');
+    const motivoContainer = document.getElementById('motivo-falta-container');
+    const producaoContainer = document.getElementById('producao-container');
+    const tabelaBody = document.querySelector('#tabela-registros tbody');
+    const enviarBtn = document.getElementById('enviar-dados');
+
+    function setDefaultDate() {
+      dataInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    async function carregarDadosIniciais() {
+        try {
+            const [trabalhadoresRes, fazendasRes, servicosRes] = await Promise.all([
+                fetch('/api/trabalhadores'),
+                fetch('/api/fazendas'),
+                fetch('/api/servicos')
+            ]);
+            todosTrabalhadores = await trabalhadoresRes.json();
+            const fazendas = await fazendasRes.json();
+            const servicos = await servicosRes.json();
+
+            const listaFazendas = document.getElementById('lista-fazendas');
+            fazendas.filter(f => f.ativa).forEach(f => listaFazendas.innerHTML += `<option value="${f.nome}">`);
+
+            const listaServicos = document.getElementById('lista-servicos');
+            servicos.filter(s => s.ativo).forEach(s => listaServicos.innerHTML += `<option value="${s.nome}">`);
+            
+            atualizarListaTrabalhadores();
+        } catch (error) {
+            console.error("Erro ao carregar dados iniciais:", error);
+            alert("Não foi possível carregar os dados iniciais. Verifique a conexão com a API.");
+        }
+    }
+
+    function atualizarListaTrabalhadores() {
+      listaAtivosUl.innerHTML = '';
+      nomeSelect.innerHTML = '<option value="">Selecione um trabalhador</option>';
+      const trabalhadoresJaRegistrados = registrosDoDia.map(r => r.nome);
+      const trabalhadoresDisponiveis = todosTrabalhadores.filter(t => t.ativo && !trabalhadoresJaRegistrados.includes(t.nome));
+      
+      trabalhadoresDisponiveis.forEach(t => {
+        listaAtivosUl.innerHTML += `<li>${t.nome}</li>`;
+        nomeSelect.innerHTML += `<option value="${t.nome}">${t.nome}</option>`;
+      });
+    }
+
+    function handleFaltaToggle() {
+      motivoContainer.classList.toggle('hidden', !faltaCheckbox.checked);
+      producaoContainer.classList.toggle('hidden', faltaCheckbox.checked);
+    }
+
+    function atualizarTabelaRegistros() {
+      tabelaBody.innerHTML = '';
+      registrosDoDia.forEach((reg, index) => {
+        const row = tabelaBody.insertRow();
+        row.className = reg.status === 'Falta' ? 'row-falta' : 'row-presenca';
+        const total = reg.producao && reg.preco ? (reg.producao * reg.preco).toFixed(2) : '0.00';
+        row.innerHTML = `
+          <td contenteditable="true" data-field="nome">${reg.nome}</td>
+          <td><b>${reg.status}</b></td>
+          <td contenteditable="true" data-field="fazenda">${reg.fazenda || '---'}</td>
+          <td contenteditable="true" data-field="detalhes">${reg.detalhes}</td>
+          <td contenteditable="true" data-field="producao">${reg.producao || '---'}</td>
+          <td contenteditable="true" data-field="preco">${reg.preco ? `${reg.preco.toFixed(2)}` : '---'}</td>
+          <td class="total-cell"><b>R$ ${total}</b></td>
+          <td><button class="remove-btn" onclick="removerRegistro(${index})">Remover</button></td>
+        `;
+      });
+    }
+
+    function removerRegistro(index) {
+      if (!confirm('Tem certeza?')) return;
+      registrosDoDia.splice(index, 1);
+      atualizarTabelaRegistros();
+      atualizarListaTrabalhadores();
+    }
+    
+    window.addEventListener('DOMContentLoaded', () => {
+      setDefaultDate();
+      carregarDadosIniciais();
+      handleFaltaToggle();
+    });
+    faltaCheckbox.addEventListener('change', handleFaltaToggle);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nome = nomeSelect.value;
+      if (!nome) return alert("Selecione um trabalhador.");
+      const isFalta = faltaCheckbox.checked;
+      registrosDoDia.push({
+        data: dataInput.value, nome, status: isFalta ? 'Falta' : 'Presente',
+        detalhes: isFalta ? document.getElementById('motivo-falta').value : document.getElementById('servico').value,
+        fazenda: isFalta ? null : document.getElementById('fazenda').value,
+        producao: isFalta ? null : parseFloat(document.getElementById('producao').value) || 0,
+        preco: isFalta ? null : parseFloat(document.getElementById('preco').value) || 0,
+      });
+      atualizarTabelaRegistros();
+      atualizarListaTrabalhadores();
+      form.reset();
+      handleFaltaToggle();
+    });
+
+    tabelaBody.addEventListener('blur', (event) => {
+        const target = event.target;
+        if (!target.isContentEditable) return;
+        const row = target.closest('tr');
+        const rowIndex = Array.from(tabelaBody.children).indexOf(row);
+        const field = target.dataset.field;
+        const newValue = target.innerText;
+        const registro = registrosDoDia[rowIndex];
+        if (registro) {
+            if (field === 'producao' || field === 'preco') {
+                registro[field] = parseFloat(newValue.replace('R$', '').replace(',', '.')) || 0;
+            } else {
+                registro[field] = newValue;
+            }
+            if ((field === 'producao' || field === 'preco') && registro.status !== 'Falta') {
+                const totalCell = row.querySelector('.total-cell');
+                totalCell.innerHTML = `<b>R$ ${(registro.producao * registro.preco).toFixed(2)}</b>`;
+            }
+        }
+    }, true);
+
+    enviarBtn.addEventListener('click', async () => {
+      if (registrosDoDia.length === 0) return alert("Não há registros para enviar.");
+      if (!confirm(`Enviar ${registrosDoDia.length} registros para o banco de dados?`)) return;
+      
+      enviarBtn.textContent = 'Enviando...';
+      enviarBtn.disabled = true;
+      try {
+        const response = await fetch('/api/registros', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(registrosDoDia)
+        });
+        if (!response.ok) throw new Error('Falha no servidor ao salvar os dados.');
+        
+        alert('Dados salvos com sucesso!');
+        registrosDoDia = [];
+        atualizarTabelaRegistros();
+        atualizarListaTrabalhadores();
+      } catch (error) {
+        alert(`ERRO: ${error.message}\n\nOs dados NÃO foram apagados. Tente novamente.`);
+      } finally {
+        enviarBtn.textContent = 'Enviar Registros do Dia e Limpar';
+        enviarBtn.disabled = false;
+      }
+    });
+
+    window.removerRegistro = removerRegistro;
+  </script>
+</body>
+</html>

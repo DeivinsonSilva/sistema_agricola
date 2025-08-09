@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento de Fazendas</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 900px; margin: auto; }
+    h1, h2 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    .formulario-container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 40px; }
+    label { display: block; margin-top: 15px; font-weight: 600; }
+    input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+    .checkbox-container { display: flex; align-items: center; margin-top: 20px; gap: 10px; }
+    input[type="checkbox"] { width: auto; height: 1.2em; width: 1.2em; }
+    button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: background-color 0.2s; }
+    button[type="submit"] { background-color: #007BFF; color: white; }
+    .btn-edit { background-color: #ffc107; color: #333; padding: 5px 10px; font-size: 12px; margin-right: 5px; }
+    .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; font-size: 12px; }
+    #cancelar-edicao { background-color: #6c757d; color: white; }
+    table { margin-top: 20px; border-collapse: collapse; width: 100%; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #ccc; padding: 12px; text-align: left; font-size: 14px; }
+    th { background-color: #e9ecef; }
+    .status-span { padding: 4px 8px; border-radius: 10px; color: white; font-weight: bold; font-size: 12px; }
+    .status-ativa { background-color: #28a745; }
+    .status-inativa { background-color: #dc3545; }
+    .hidden { display: none; }
+    .link-voltar { display: inline-block; margin-bottom: 20px; color: #0056b3; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="link-voltar">&larr; Voltar ao Painel</a>
+    <h1>Gerenciamento de Fazendas</h1>
+    <section class="formulario-container">
+      <h2 id="form-title">Cadastrar Nova Fazenda</h2>
+      <form id="fazenda-form">
+        <input type="hidden" id="fazenda-id">
+        <label for="nome-fazenda">Nome da Fazenda:</label>
+        <input type="text" id="nome-fazenda" required>
+        <label for="proprietario-fazenda">Proprietário:</label>
+        <input type="text" id="proprietario-fazenda">
+        <label for="cidade-fazenda">Cidade:</label>
+        <input type="text" id="cidade-fazenda">
+        <div class="checkbox-container">
+          <input type="checkbox" id="status-fazenda" checked>
+          <label for="status-fazenda" style="margin-top:0;">Ativa</label>
+        </div>
+        <button type="submit" id="btn-salvar">Salvar</button>
+        <button type="button" id="cancelar-edicao" class="hidden">Cancelar Edição</button>
+      </form>
+    </section>
+    <section class="lista-container">
+      <h2>Fazendas Cadastradas</h2>
+      <table id="tabela-fazendas">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Proprietário</th>
+            <th>Cidade</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+  <script>
+    const form = document.getElementById('fazenda-form');
+    const formTitle = document.getElementById('form-title');
+    const tabelaBody = document.querySelector('#tabela-fazendas tbody');
+    const hiddenFazendaId = document.getElementById('fazenda-id');
+    const nomeInput = document.getElementById('nome-fazenda');
+    const proprietarioInput = document.getElementById('proprietario-fazenda');
+    const cidadeInput = document.getElementById('cidade-fazenda');
+    const statusCheckbox = document.getElementById('status-fazenda');
+    const salvarBtn = document.getElementById('btn-salvar');
+    const cancelarBtn = document.getElementById('cancelar-edicao');
+    let fazendas_carregadas = [];
+
+    async function renderizarTabela() {
+      tabelaBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+      try {
+        const response = await fetch('/api/fazendas');
+        fazendas_carregadas = await response.json();
+        tabelaBody.innerHTML = '';
+        fazendas_carregadas.forEach(fazenda => {
+          const row = tabelaBody.insertRow();
+          const statusClass = fazenda.ativa ? 'status-ativa' : 'status-inativa';
+          const statusText = fazenda.ativa ? 'Ativa' : 'Inativa';
+          row.innerHTML = `
+            <td>${fazenda.nome}</td>
+            <td>${fazenda.proprietario || ''}</td>
+            <td>${fazenda.cidade || ''}</td>
+            <td><span class="status-span ${statusClass}">${statusText}</span></td>
+            <td>
+              <button class="btn-edit" onclick="prepararEdicao('${fazenda._id}')">Editar</button>
+              <button class="btn-delete" onclick="excluirFazenda('${fazenda._id}')">Excluir</button>
+            </td>
+          `;
+        });
+      } catch (error) {
+        tabelaBody.innerHTML = '<tr><td colspan="5">Erro ao carregar os dados.</td></tr>';
+        console.error("Erro ao buscar fazendas:", error);
+      }
+    }
+
+    function limparFormulario() {
+      form.reset();
+      hiddenFazendaId.value = '';
+      formTitle.textContent = 'Cadastrar Nova Fazenda';
+      salvarBtn.textContent = 'Salvar';
+      cancelarBtn.classList.add('hidden');
+    }
+
+    function prepararEdicao(id) {
+      const fazenda = fazendas_carregadas.find(f => f._id === id);
+      if (!fazenda) return;
+      hiddenFazendaId.value = fazenda._id;
+      nomeInput.value = fazenda.nome;
+      proprietarioInput.value = fazenda.proprietario;
+      cidadeInput.value = fazenda.cidade;
+      statusCheckbox.checked = fazenda.ativa;
+      formTitle.textContent = 'Editando Fazenda';
+      salvarBtn.textContent = 'Salvar Alterações';
+      cancelarBtn.classList.remove('hidden');
+      window.scrollTo(0, 0);
+    }
+
+    async function excluirFazenda(id) {
+      if (confirm('Tem certeza que deseja excluir esta fazenda?')) {
+        await fetch(`/api/fazendas/${id}`, { method: 'DELETE' });
+        renderizarTabela();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', renderizarTabela);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = hiddenFazendaId.value;
+      const fazendaData = {
+        nome: nomeInput.value,
+        proprietario: proprietarioInput.value,
+        cidade: cidadeInput.value,
+        ativa: statusCheckbox.checked,
+      };
+
+      if (id) {
+        // Modo Edição
+        await fetch(`/api/fazendas/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fazendaData),
+        });
+      } else {
+        // Modo Cadastro
+        await fetch('/api/fazendas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fazendaData),
+        });
+      }
+      renderizarTabela();
+      limparFormulario();
+    });
+
+    cancelarBtn.addEventListener('click', limparFormulario);
+    window.prepararEdicao = prepararEdicao;
+    window.excluirFazenda = excluirFazenda;
+  </script>
+</body>
+</html>

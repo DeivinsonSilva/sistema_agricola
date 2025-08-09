@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento de Trabalhadores</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 900px; margin: auto; }
+    h1, h2 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    .formulario-container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 40px; }
+    label { display: block; margin-top: 15px; font-weight: 600; }
+    input[type="text"], input[type="date"] { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+    .checkbox-container, .radio-group { display: flex; align-items: center; margin-top: 20px; gap: 10px; }
+    input[type="checkbox"], input[type="radio"] { width: auto; height: 1.2em; width: 1.2em; }
+    .radio-group label, .checkbox-container label { margin-top: 0; font-weight: normal; }
+    .radio-group input { margin-left: 15px; }
+    button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: background-color 0.2s; }
+    button[type="submit"] { background-color: #007BFF; color: white; }
+    .btn-edit { background-color: #ffc107; color: #333; padding: 5px 10px; font-size: 12px; margin-right: 5px; }
+    .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; font-size: 12px; }
+    #cancelar-edicao { background-color: #6c757d; color: white; }
+    table { margin-top: 20px; border-collapse: collapse; width: 100%; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #ccc; padding: 12px; text-align: left; font-size: 14px; }
+    th { background-color: #e9ecef; }
+    .status-span { padding: 4px 8px; border-radius: 10px; color: white; font-weight: bold; font-size: 12px; }
+    .status-ativa { background-color: #28a745; }
+    .status-inativa { background-color: #dc3545; }
+    .hidden { display: none; }
+    .link-voltar { display: inline-block; margin-bottom: 20px; color: #0056b3; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="link-voltar">&larr; Voltar ao Painel</a>
+    <h1>Gerenciamento de Trabalhadores</h1>
+    <section class="formulario-container">
+      <h2 id="form-title">Cadastrar Novo Trabalhador</h2>
+      <form id="trabalhador-form">
+        <input type="hidden" id="trabalhador-id">
+        <label for="nome-trabalhador">Nome Completo:</label>
+        <input type="text" id="nome-trabalhador" required>
+        <label style="margin-bottom: -10px;">Registrado em Carteira?</label>
+        <div class="radio-group">
+          <input type="radio" id="registrado-sim" name="registrado" value="sim">
+          <label for="registrado-sim">Sim</label>
+          <input type="radio" id="registrado-nao" name="registrado" value="nao" checked>
+          <label for="registrado-nao">Não</label>
+        </div>
+        <div id="data-registro-container" class="hidden">
+          <label for="data-registro">Data do Registro:</label>
+          <input type="date" id="data-registro">
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="status-trabalhador" checked>
+          <label for="status-trabalhador">Trabalhador Ativo</label>
+        </div>
+        <button type="submit" id="btn-salvar">Salvar</button>
+        <button type="button" id="cancelar-edicao" class="hidden">Cancelar Edição</button>
+      </form>
+    </section>
+    <section class="lista-container">
+      <h2>Trabalhadores Cadastrados</h2>
+      <table id="tabela-trabalhadores">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Registro em Carteira</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+  <script>
+    const form = document.getElementById('trabalhador-form');
+    const formTitle = document.getElementById('form-title');
+    const tabelaBody = document.querySelector('#tabela-trabalhadores tbody');
+    const hiddenTrabalhadorId = document.getElementById('trabalhador-id');
+    const nomeInput = document.getElementById('nome-trabalhador');
+    const statusCheckbox = document.getElementById('status-trabalhador');
+    const radioRegistradoSim = document.getElementById('registrado-sim');
+    const radioRegistradoNao = document.getElementById('registrado-nao');
+    const dataRegistroContainer = document.getElementById('data-registro-container');
+    const dataRegistroInput = document.getElementById('data-registro');
+    const salvarBtn = document.getElementById('btn-salvar');
+    const cancelarBtn = document.getElementById('cancelar-edicao');
+    let trabalhadores_carregados = [];
+
+    function formatarDataExibicao(dataISO) {
+        if (!dataISO) return '';
+        const data = new Date(dataISO);
+        const dia = String(data.getUTCDate()).padStart(2, '0');
+        const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+        const ano = data.getUTCFullYear();
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    function formatarDataInput(dataISO) {
+        if (!dataISO) return '';
+        return dataISO.split('T')[0];
+    }
+
+    function toggleDataRegistro() {
+      dataRegistroContainer.classList.toggle('hidden', !radioRegistradoSim.checked);
+    }
+
+    async function renderizarTabela() {
+      tabelaBody.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
+      try {
+        const response = await fetch('/api/trabalhadores');
+        trabalhadores_carregados = await response.json();
+        tabelaBody.innerHTML = '';
+        trabalhadores_carregados.forEach(trabalhador => {
+          const row = tabelaBody.insertRow();
+          const statusClass = trabalhador.ativo ? 'status-ativa' : 'status-inativa';
+          const statusText = trabalhador.ativo ? 'Ativo' : 'Inativo';
+          const registroText = trabalhador.registrado 
+            ? `Sim (${formatarDataExibicao(trabalhador.dataRegistro)})` 
+            : 'Não';
+
+          row.innerHTML = `
+            <td>${trabalhador.nome}</td>
+            <td>${registroText}</td>
+            <td><span class="status-span ${statusClass}">${statusText}</span></td>
+            <td>
+              <button class="btn-edit" onclick="prepararEdicao('${trabalhador._id}')">Editar</button>
+              <button class="btn-delete" onclick="excluirTrabalhador('${trabalhador._id}')">Excluir</button>
+            </td>
+          `;
+        });
+      } catch (error) {
+          tabelaBody.innerHTML = '<tr><td colspan="4">Erro ao carregar dados.</td></tr>';
+          console.error("Erro ao buscar trabalhadores:", error);
+      }
+    }
+
+    function limparFormulario() {
+      form.reset();
+      hiddenTrabalhadorId.value = '';
+      formTitle.textContent = 'Cadastrar Novo Trabalhador';
+      salvarBtn.textContent = 'Salvar';
+      cancelarBtn.classList.add('hidden');
+      toggleDataRegistro();
+    }
+    
+    function prepararEdicao(id) {
+      const trabalhador = trabalhadores_carregados.find(t => t._id === id);
+      if (!trabalhador) return;
+      hiddenTrabalhadorId.value = trabalhador._id;
+      nomeInput.value = trabalhador.nome;
+      statusCheckbox.checked = trabalhador.ativo;
+      if (trabalhador.registrado) {
+        radioRegistradoSim.checked = true;
+        dataRegistroInput.value = formatarDataInput(trabalhador.dataRegistro);
+      } else {
+        radioRegistradoNao.checked = true;
+      }
+      toggleDataRegistro();
+      formTitle.textContent = 'Editando Trabalhador';
+      salvarBtn.textContent = 'Salvar Alterações';
+      cancelarBtn.classList.remove('hidden');
+      window.scrollTo(0, 0);
+    }
+    
+    async function excluirTrabalhador(id) {
+      if (confirm('Tem certeza que deseja excluir este trabalhador?')) {
+        await fetch(`/api/trabalhadores/${id}`, { method: 'DELETE' });
+        renderizarTabela();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', renderizarTabela);
+    form.addEventListener('change', (e) => {
+        if (e.target.name === 'registrado') {
+            toggleDataRegistro();
+        }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = hiddenTrabalhadorId.value;
+      const trabalhadorData = {
+        nome: nomeInput.value,
+        ativo: statusCheckbox.checked,
+        registrado: radioRegistradoSim.checked,
+        dataRegistro: radioRegistradoSim.checked ? dataRegistroInput.value : null
+      };
+      if (trabalhadorData.registrado && !trabalhadorData.dataRegistro) {
+        alert('Por favor, informe a data do registro.');
+        return;
+      }
+      if (id) {
+        await fetch(`/api/trabalhadores/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(trabalhadorData)
+        });
+      } else {
+        await fetch('/api/trabalhadores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(trabalhadorData)
+        });
+      }
+      renderizarTabela();
+      limparFormulario();
+    });
+    
+    cancelarBtn.addEventListener('click', limparFormulario);
+    window.prepararEdicao = prepararEdicao;
+    window.excluirTrabalhador = excluirTrabalhador;
+  </script>
+</body>
+</html>

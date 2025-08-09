@@ -88,5 +88,25 @@ app.post('/api/registros', async (req, res) => {
     }
 });
 
+// COLE ESTE BLOCO NO FINAL DO ARQUIVO api/server.js, ANTES DE module.exports = app;
+
+// Rota para BUSCAR registros por MÊS e ANO
+app.get('/api/registros/por-mes', async (req, res) => {
+    const { ano, mes } = req.query; // Ex: ano=2025, mes=08
+
+    if (!ano || !mes) {
+        return res.status(400).json({ message: 'Ano e mês são obrigatórios.' });
+    }
+
+    try {
+        // Cria uma expressão regular para buscar datas que começam com "AAAA-MM-"
+        const regexData = new RegExp(`^${ano}-${mes}-`);
+        const registros = await RegistroDiario.find({ data: { $regex: regexData } }).sort({ data: 1 });
+        res.json(registros);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Necessário para a Vercel
 module.exports = app;

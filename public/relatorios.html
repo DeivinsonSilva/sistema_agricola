@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios de Atividades</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 1100px; margin: auto; }
+    h1, h2 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    .no-print { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 30px; }
+    .filtros { display: flex; align-items: flex-end; gap: 20px; }
+    label { display: block; font-weight: 600; margin-bottom: 5px; }
+    input[type="month"] { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+    button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: background-color 0.2s; }
+    #btn-gerar { background-color: #007BFF; }
+    #btn-pdf { background-color: #dc3545; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    #area-impressao { background-color: white; padding: 2cm; /* A4-like padding */ }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 10pt; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .report-header { text-align: center; margin-bottom: 30px; }
+    .report-header h2 { border: none; }
+    .report-footer { text-align: right; margin-top: 20px; font-size: 9pt; color: #777; }
+    .summary-row { font-weight: bold; background-color: #f8f9fa; }
+    .hidden { display: none; }
+    .link-voltar { display: inline-block; margin-bottom: 20px; color: #0056b3; text-decoration: none; font-weight: bold; }
+
+    /* Estilos para impressão */
+    @media print {
+        body { background-color: white; }
+        .no-print { display: none; }
+        #area-impressao { box-shadow: none; padding: 0; }
+        .container { max-width: 100%; margin: 0; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="link-voltar">&larr; Voltar ao Painel</a>
+    <h1>Relatórios de Atividades Diárias</h1>
+
+    <div class="no-print">
+      <h2>Filtros e Ações</h2>
+      <div class="filtros">
+        <div>
+          <label for="mes-ano">Selecione o Mês e Ano:</label>
+          <input type="month" id="mes-ano">
+        </div>
+        <button id="btn-gerar">Gerar Relatório</button>
+        <button id="btn-pdf" disabled>Imprimir / Baixar PDF</button>
+      </div>
+    </div>
+    
+    <div id="report-container">
+      </div>
+  </div>
+
+  <script>
+    const mesAnoInput = document.getElementById('mes-ano');
+    const btnGerar = document.getElementById('btn-gerar');
+    const btnPdf = document.getElementById('btn-pdf');
+    const reportContainer = document.getElementById('report-container');
+
+    function formatarData(dataISO) {
+        if (!dataISO) return '';
+        const [ano, mes, dia] = dataISO.split('T')[0].split('-');
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    btnGerar.addEventListener('click', async () => {
+        const [ano, mes] = mesAnoInput.value.split('-');
+        if (!ano || !mes) {
+            alert("Por favor, selecione um mês e ano.");
+            return;
+        }
+
+        reportContainer.innerHTML = "<p>Gerando relatório, aguarde...</p>";
+        btnPdf.disabled = true;
+
+        try {
+            const response = await fetch(`/api/registros/por-mes?ano=${ano}&mes=${mes}`);
+            const registros = await response.json();
+
+            const dataGeracao = new Date().toLocaleDateString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+            const nomeMes = new Date(ano, mes - 1, 1).toLocaleString('pt-BR', { month: 'long' });
+            let totalGeral = 0;
+            let tabelaHtml = '';
+
+            registros.forEach(reg => {
+                const totalLinha = (reg.producao && reg.preco) ? reg.producao * reg.preco : 0;
+                totalGeral += totalLinha;
+                tabelaHtml += `
+                    <tr>
+                        <td>${formatarData(reg.data)}</td>
+                        <td>${reg.nome}</td>
+                        <td>${reg.status}</td>
+                        <td>${reg.fazenda || '---'}</td>
+                        <td>${reg.detalhes || '---'}</td>
+                        <td>${reg.producao || '0'}</td>
+                        <td>R$ ${reg.preco ? reg.preco.toFixed(2) : '0.00'}</td>
+                        <td>R$ ${totalLinha.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            
+            const relatorioHtml = `
+                <div id="area-impressao">
+                    <div class="report-header">
+                        <h2>Relatório de Atividades</h2>
+                        <p>Período de Referência: <strong>${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)} de ${ano}</strong></p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Trabalhador</th>
+                                <th>Status</th>
+                                <th>Fazenda</th>
+                                <th>Serviço/Motivo</th>
+                                <th>Produção</th>
+                                <th>Preço Unit.</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${registros.length > 0 ? tabelaHtml : '<tr><td colspan="8" style="text-align:center;">Nenhum registro encontrado para este período.</td></tr>'}
+                        </tbody>
+                        <tfoot>
+                            <tr class="summary-row">
+                                <td colspan="7" style="text-align:right;">Total Geral do Período:</td>
+                                <td>R$ ${totalGeral.toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="report-footer">
+                        Relatório gerado em: ${dataGeracao}
+                    </div>
+                </div>
+            `;
+            
+            reportContainer.innerHTML = relatorioHtml;
+            if (registros.length > 0) {
+                btnPdf.disabled = false;
+            }
+
+        } catch (error) {
+            reportContainer.innerHTML = "<p style='color:red;'>Erro ao gerar relatório.</p>";
+            console.error(error);
+        }
+    });
+
+    btnPdf.addEventListener('click', () => {
+        const elemento = document.getElementById('area-impressao');
+        const [ano, mes] = mesAnoInput.value.split('-');
+
+        const opt = {
+          margin:       1,
+          filename:     `relatorio_atividades_${ano}_${mes}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true },
+          jsPDF:        { unit: 'cm', format: 'a4', orientation: 'landscape' } // paisagem para caber a tabela
+        };
+
+        // Usa a biblioteca html2pdf para criar e baixar o PDF
+        html2pdf().set(opt).from(elemento).save();
+    });
+
+    // Define o mês e ano atuais como padrão no input
+    (function setDefaultMonth() {
+        const hoje = new Date();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const ano = hoje.getFullYear();
+        mesAnoInput.value = `${ano}-${mes}`;
+    })();
+  </script>
+</body>
+</html>

@@ -84,7 +84,10 @@
             const response = await fetch(`/api/registros/por-mes?ano=${ano}&mes=${mes}`);
             const registros = await response.json();
 
-            const dataGeracao = new Date().toLocaleDateString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+            // --- CORREÇÃO AQUI ---
+            // Trocado toLocaleDateString por toLocaleString para incluir data e hora
+            const dataGeracao = new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+            
             const nomeMes = new Date(ano, mes - 1, 1).toLocaleString('pt-BR', { month: 'long' });
             let totalGeral = 0;
             let tabelaHtml = '';

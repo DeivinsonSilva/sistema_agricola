@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,9 +8,10 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 // --- Conexão com o MongoDB Atlas ---
-// A MONGODB_URI virá das variáveis de ambiente da Vercel
+// A MONGODB_URI virá das variáveis de ambiente (do arquivo .env localmente, ou das configurações da Vercel)
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Conectado ao MongoDB!'))
   .catch((err) => console.error('Erro ao conectar ao MongoDB:', err));
@@ -79,7 +81,6 @@ app.delete('/api/trabalhadores/:id', async (req, res) => res.json(await Trabalha
 
 // Rota para salvar TODOS os registros diários de uma vez
 app.post('/api/registros', async (req, res) => {
-    // req.body deve ser um array de objetos de registro
     try {
         const registros = await RegistroDiario.insertMany(req.body);
         res.status(201).json(registros);
@@ -88,18 +89,15 @@ app.post('/api/registros', async (req, res) => {
     }
 });
 
-// COLE ESTE BLOCO NO FINAL DO ARQUIVO api/server.js, ANTES DE module.exports = app;
-
-// Rota para BUSCAR registros por MÊS e ANO
+// Rota para BUSCAR registros por MÊS e ANO para os relatórios
 app.get('/api/registros/por-mes', async (req, res) => {
-    const { ano, mes } = req.query; // Ex: ano=2025, mes=08
+    const { ano, mes } = req.query; 
 
     if (!ano || !mes) {
         return res.status(400).json({ message: 'Ano e mês são obrigatórios.' });
     }
 
     try {
-        // Cria uma expressão regular para buscar datas que começam com "AAAA-MM-"
         const regexData = new RegExp(`^${ano}-${mes}-`);
         const registros = await RegistroDiario.find({ data: { $regex: regexData } }).sort({ data: 1 });
         res.json(registros);
@@ -108,5 +106,15 @@ app.get('/api/registros/por-mes', async (req, res) => {
     }
 });
 
-// Necessário para a Vercel
+
+// Esta parte só vai rodar o servidor quando estivermos em ambiente local.
+// A Vercel gerencia o servidor automaticamente no ambiente de produção (nuvem).
+if (!process.env.VERCEL_ENV) {
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+        console.log(`🚀 Servidor local pronto em http://localhost:${PORT}`);
+    });
+}
+
+// Exporta o app para a Vercel usar
 module.exports = app;

@@ -124,6 +124,44 @@ app.get('/api/registros/por-dia', async (req, res) => {
     }
 });
 
+// COLE ESTE BLOCO NO ARQUIVO api/server.js, ANTES DA PARTE "if (!process.env.VERCEL_ENV)"
+
+// Rota para GERAR a Folha de Pagamento
+app.get('/api/folha-pagamento', async (req, res) => {
+    const { dataInicio, dataFim } = req.query;
+
+    if (!dataInicio || !dataFim) {
+        return res.status(400).json({ message: 'Data de início e fim são obrigatórias.' });
+    }
+
+    try {
+        const registros = await RegistroDiario.find({
+            data: { $gte: dataInicio, $lte: dataFim }
+        }).sort({ data: 1 });
+
+        // Estrutura para agrupar dados por trabalhador
+        const payrollData = {};
+
+        registros.forEach(reg => {
+            if (!payrollData[reg.nome]) {
+                payrollData[reg.nome] = {};
+            }
+            const valorDiario = (reg.producao && reg.preco) ? reg.producao * reg.preco : 0;
+            
+            if (reg.status === 'Falta') {
+                payrollData[reg.nome][reg.data] = 'FALTA';
+            } else {
+                payrollData[reg.nome][reg.data] = (payrollData[reg.nome][reg.data] || 0) + valorDiario;
+            }
+        });
+
+        res.json(payrollData);
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Esta parte só vai rodar o servidor quando estivermos em ambiente local.
 // A Vercel gerencia o servidor automaticamente no ambiente de produção (nuvem).
 if (!process.env.VERCEL_ENV) {

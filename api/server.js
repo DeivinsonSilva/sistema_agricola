@@ -106,6 +106,23 @@ app.get('/api/registros/por-mes', async (req, res) => {
     }
 });
 
+// COLE ESTE BLOCO NO ARQUIVO api/server.js, ANTES DA PARTE "if (!process.env.VERCEL_ENV)"
+
+// Rota para BUSCAR registros por DIA específico
+app.get('/api/registros/por-dia', async (req, res) => {
+    const { data } = req.query; // Ex: data=2025-08-09
+
+    if (!data) {
+        return res.status(400).json({ message: 'A data é obrigatória.' });
+    }
+
+    try {
+        const registros = await RegistroDiario.find({ data: data }).sort({ nome: 1 });
+        res.json(registros);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
 
 // Esta parte só vai rodar o servidor quando estivermos em ambiente local.
 // A Vercel gerencia o servidor automaticamente no ambiente de produção (nuvem).

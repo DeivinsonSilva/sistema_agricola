@@ -32,7 +32,7 @@
 </head>
 <body>
   <div class="container">
-    <a href="index.html" class="link-voltar">&larr; Voltar ao Painel</a>
+    <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Registro de Trabalho Diário</h1>
     <section>
       <h2>1. Selecione a Data do Registro</h2>
@@ -151,9 +151,15 @@
       });
     }
 
+    // Substitua a função handleFaltaToggle() inteira por esta:
     function handleFaltaToggle() {
-      motivoContainer.classList.toggle('hidden', !faltaCheckbox.checked);
-      producaoContainer.classList.toggle('hidden', faltaCheckbox.checked);
+        const isFalta = faltaCheckbox.checked;
+        motivoContainer.classList.toggle('hidden', !isFalta);
+        producaoContainer.classList.toggle('hidden', isFalta);
+
+        // Linhas adicionadas para corrigir o problema
+        fazendaSelect.required = !isFalta;
+        servicoSelect.required = !isFalta;
     }
 
     function atualizarTabelaRegistros() {

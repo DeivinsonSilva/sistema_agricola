@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale-1.0">
   <title>Sistema de Controle Agrícola - Início</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
@@ -18,12 +18,17 @@
     .card-description { font-size: 0.9rem; color: #555; text-align: center; min-height: 60px; }
     .logout-footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; }
     #logout-button { background-color: #dc3545; color: white; padding: 10px 25px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; transition: background-color 0.2s; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
+  <script>
+    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
+  </script>
+
   <div class="container">
     <h1>Painel Principal de Controle</h1>
-    <h2 class="subtitle">Sistema de Controle de Trabalho Agrícola</h2>
+    <h2 class="subtitle">Bem-vindo(a), <span id="user-name"></span>!</h2>
     <main class="dashboard-grid">
       <a href="registro_diario.html" class="dashboard-card">
         <div class="card-icon">🗓️</div><h3 class="card-title">Registro Diário</h3>
@@ -37,24 +42,47 @@
         <div class="card-icon">📊</div><h3 class="card-title">Relatórios</h3>
         <p class="card-description">Exporte os registros de trabalho mensais ou diários em formato PDF.</p>
       </a>
-      <a href="gerenciar_trabalhadores.html" class="dashboard-card">
+
+      <a id="card-trabalhadores" href="gerenciar_trabalhadores.html" class="dashboard-card admin-card hidden">
         <div class="card-icon">👨‍👩‍👧‍👦</div><h3 class="card-title">Trabalhadores</h3>
         <p class="card-description">Adicione, edite informações, status e dados de registro dos trabalhadores.</p>
       </a>
-      <a href="gerenciar_fazendas.html" class="dashboard-card">
+      <a id="card-fazendas" href="gerenciar_fazendas.html" class="dashboard-card admin-card hidden">
         <div class="card-icon">🏞️</div><h3 class="card-title">Fazendas</h3>
         <p class="card-description">Cadastre e gerencie as fazendas e propriedades rurais.</p>
       </a>
-      <a href="gerenciar_servicos.html" class="dashboard-card">
+      <a id="card-servicos" href="gerenciar_servicos.html" class="dashboard-card admin-card hidden">
         <div class="card-icon">🛠️</div><h3 class="card-title">Serviços</h3>
         <p class="card-description">Defina os tipos de serviço, seus preços padrão e status no sistema.</p>
+      </a>
+      <a id="card-usuarios" href="gerenciar_usuarios.html" class="dashboard-card admin-card hidden">
+        <div class="card-icon">🔑</div><h3 class="card-title">Gerenciar Usuários</h3>
+        <p class="card-description">Adicione, edite e defina permissões para os usuários do sistema.</p>
       </a>
     </main>
     <footer class="logout-footer"><button id="logout-button">Sair do Sistema</button></footer>
   </div>
+
   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const user = JSON.parse(localStorage.getItem('userInfo'));
+        if (user) {
+            document.getElementById('user-name').textContent = user.nome;
+
+            // Lógica para mostrar os cards de Admin
+            if (user.tipo === 'Admin') {
+                const adminCards = document.querySelectorAll('.admin-card');
+                adminCards.forEach(card => card.classList.remove('hidden'));
+            }
+        }
+    });
+
     document.getElementById('logout-button').addEventListener('click', () => {
-      if (confirm('Tem certeza que deseja sair?')) window.location.href = '/';
+      if (confirm('Você tem certeza que deseja sair?')) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userInfo');
+        window.location.href = 'index.html';
+      }
     });
   </script>
 </body>

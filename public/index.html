@@ -5,12 +5,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Sistema de Controle Agrícola</title>
   <style>
+    /* --- ESTILOS GERAIS --- */
     body { 
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       margin: 0;
-      padding: 20px;
-      background-color: #f4f7f6;
       color: #333;
+    }
+    * {
+      box-sizing: border-box;
+    }
+
+    /* --- ESTILOS PARA O NOVO LAYOUT DE TELA DIVIDIDA --- */
+    .split-screen-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .info-pane {
+      flex: 3; /* O painel de informação ocupa mais espaço */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      color: white;
+      
+      /* Imagem de fundo */
+      background-image: url('https://images.unsplash.com/photo-1620200423726-35343171d370?q=80&w=1974&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center;
+      position: relative; /* Necessário para o overlay */
+    }
+
+    /* Overlay escuro para melhorar a legibilidade do texto */
+    .info-pane::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1;
+    }
+
+    .info-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 500px;
+    }
+    .info-content h1 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+    }
+    .info-content p {
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+
+    .login-pane {
+      flex: 2; /* O painel de login ocupa menos espaço */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #f4f7f6;
+      padding: 40px;
+    }
+    
+    /* --- ESTILOS DO CARD DE LOGIN (REAPROVEITADOS) --- */
+    .login-card {
+      background-color: white;
+      padding: 30px 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-card h2 {
+      color: #0056b3;
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 30px;
+      font-size: 1.8rem;
     }
     label { 
       display: block;
@@ -22,7 +98,6 @@
       width: 100%;
       padding: 12px;
       margin-top: 5px;
-      box-sizing: border-box;
       border: 1px solid #ccc;
       border-radius: 5px;
     }
@@ -39,52 +114,6 @@
       color: white;
       font-size: 16px;
     }
-    button[type="submit"]:hover {
-      background-color: #0056b3;
-    }
-    .login-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(100vh - 40px);
-    }
-    .login-card {
-      background-color: white;
-      padding: 30px 40px;
-      border-radius: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
-    }
-    .login-card h1 {
-      color: #0056b3;
-      text-align: center;
-      margin: 0 0 10px 0;
-      font-size: 1.5rem;
-    }
-    .login-card h2 {
-      text-align: center;
-      color: #6c757d;
-      margin-top: 0;
-      margin-bottom: 30px;
-      font-size: 1rem;
-      font-weight: normal;
-      border: none;
-    }
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      margin-top: 15px;
-      gap: 10px;
-    }
-    .checkbox-container label {
-      margin-top: 0;
-      font-weight: normal;
-      color: #555;
-    }
-    input[type="checkbox"] {
-      width: auto;
-    }
     .error-message {
       background-color: #f8d7da;
       color: #721c24;
@@ -98,68 +127,85 @@
     .hidden {
       display: none;
     }
+
+    /* --- ESTILOS PARA TELAS MENORES (CELULARES) --- */
+    @media (max-width: 768px) {
+      .split-screen-container {
+        flex-direction: column;
+      }
+      .info-pane {
+        flex: none; /* Remove a proporção */
+        min-height: 250px;
+      }
+      .login-pane {
+        flex: none;
+      }
+    }
+
   </style>
 </head>
 <body>
 
-  <div class="login-container">
-    <div class="login-card">
-      <h1>Sistema de Controle Agrícola</h1>
-      <h2>Acesso ao Painel</h2>
-      <form id="login-form">
-        <div>
-          <label for="username">Usuário</label>
-          <input type="text" id="username" required>
-        </div>
-        <div>
-          <label for="password">Senha</label>
-          <input type="password" id="password" required>
-        </div>
-        <div class="checkbox-container">
-          <input type="checkbox" id="remember-me">
-          <label for="remember-me">Lembrar-me</label>
-        </div>
-        
-        <div id="error-message" class="error-message hidden">
-          Usuário ou senha inválidos. Tente novamente.
-        </div>
-        
-        <button type="submit">Entrar</button>
-      </form>
-    </div>
+  <div class="split-screen-container">
+    
+    <section class="info-pane">
+      <div class="info-content">
+        <h1>Sistema de Controle Agrícola</h1>
+        <p>Centralize e gerencie com eficiência todos os registros de trabalho, fazendas, serviços e pagamentos em um único lugar. Tenha o controle total da sua operação na palma da sua mão.</p>
+      </div>
+    </section>
+
+    <section class="login-pane">
+      <div class="login-card">
+        <h2>Acesso ao Sistema</h2>
+        <form id="login-form">
+          <div><label for="login">Login</label><input type="text" id="login" required></div>
+          <div><label for="password">Senha</label><input type="password" id="password" required></div>
+          <div id="error-message" class="error-message hidden"></div>
+          <button type="submit">Entrar</button>
+        </form>
+      </div>
+    </section>
+
   </div>
 
   <script>
-    const CREDENCIAIS_CORRETAS = {
-      usuario: 'admin',
-      senha: '123'
-    };
-
     const form = document.getElementById('login-form');
-    const userInput = document.getElementById('username');
+    const loginInput = document.getElementById('login');
     const passwordInput = document.getElementById('password');
     const errorMessage = document.getElementById('error-message');
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault(); 
+    if (localStorage.getItem('authToken')) {
+        window.location.href = 'dashboard.html';
+    }
 
-      const usuarioDigitado = userInput.value;
-      const senhaDigitada = passwordInput.value;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorMessage.classList.add('hidden');
+      const login = loginInput.value;
+      const senha = passwordInput.value;
 
-      if (usuarioDigitado === CREDENCIAIS_CORRETAS.usuario && senhaDigitada === CREDENCIAIS_CORRETAS.senha) {
-        alert('Login bem-sucedido! Redirecionando para o painel...');
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, senha })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Erro de autenticação');
+        }
         
-        // --- CORREÇÃO AQUI ---
-        // Redireciona para a nova página do painel de controle
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('userInfo', JSON.stringify(data.user));
+
         window.location.href = 'dashboard.html';
 
-      } else {
+      } catch (error) {
+        errorMessage.textContent = error.message;
         errorMessage.classList.remove('hidden');
-        passwordInput.value = '';
-        userInput.focus();
       }
     });
   </script>
-
 </body>
 </html>

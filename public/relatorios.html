@@ -31,10 +31,13 @@
   </style>
 </head>
 <body>
+  <script>
+    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
+  </script>
+
   <div class="container">
     <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Relatórios de Atividades Diárias</h1>
-
     <div class="no-print">
       <h2>Filtros e Ações</h2>
       <div class="tipo-relatorio">
@@ -42,22 +45,14 @@
         <label><input type="radio" name="tipoRelatorio" value="mensal"> Mensal</label>
       </div>
       <div class="filtros">
-        <div id="filtro-diario">
-          <label for="dia-input">Selecione o Dia:</label>
-          <input type="date" id="dia-input">
-        </div>
-        <div id="filtro-mensal" class="hidden">
-          <label for="mes-ano-input">Selecione o Mês e Ano:</label>
-          <input type="month" id="mes-ano-input">
-        </div>
+        <div id="filtro-diario"><label for="dia-input">Dia:</label><input type="date" id="dia-input"></div>
+        <div id="filtro-mensal" class="hidden"><label for="mes-ano-input">Mês/Ano:</label><input type="month" id="mes-ano-input"></div>
         <button id="btn-gerar">Gerar Relatório</button>
         <button id="btn-pdf" disabled>Imprimir / Baixar PDF</button>
       </div>
     </div>
-    
     <div id="report-container"></div>
   </div>
-
   <script>
     const reportContainer = document.getElementById('report-container');
     const btnGerar = document.getElementById('btn-gerar');
@@ -67,6 +62,8 @@
     const filtroMensal = document.getElementById('filtro-mensal');
     const diaInput = document.getElementById('dia-input');
     const mesAnoInput = document.getElementById('mes-ano-input');
+
+    const getAuthHeader = () => ({ headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } });
 
     function formatarData(dataISO) {
       if (!dataISO) return '';
@@ -84,19 +81,17 @@
     
     btnGerar.addEventListener('click', async () => {
       const tipo = document.querySelector('input[name="tipoRelatorio"]:checked').value;
-      let url = '';
-      let periodo = '';
-      let nomeArquivo = 'relatorio';
+      let url = '', periodo = '', nomeArquivo = 'relatorio';
 
       if (tipo === 'diario') {
         const data = diaInput.value;
-        if (!data) return alert("Por favor, selecione um dia.");
+        if (!data) return alert("Selecione um dia.");
         url = `/api/registros/por-dia?data=${data}`;
         periodo = `Dia: <strong>${formatarData(data + 'T00:00:00')}</strong>`;
         nomeArquivo += `_diario_${data}`;
       } else {
         const mesAno = mesAnoInput.value;
-        if (!mesAno) return alert("Por favor, selecione um mês e ano.");
+        if (!mesAno) return alert("Selecione um mês e ano.");
         const [ano, mes] = mesAno.split('-');
         url = `/api/registros/por-mes?ano=${ano}&mes=${mes}`;
         const nomeMes = new Date(ano, mes - 1, 1).toLocaleString('pt-BR', { month: 'long' });
@@ -104,26 +99,23 @@
         nomeArquivo += `_mensal_${ano}_${mes}`;
       }
       
-      reportContainer.innerHTML = "<p>Gerando relatório, aguarde...</p>";
+      reportContainer.innerHTML = "<p>Gerando relatório...</p>";
       btnPdf.disabled = true;
 
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, getAuthHeader());
+        if (response.status === 401 || response.status === 403) return window.location.href = 'index.html';
         const registros = await response.json();
-        const dataGeracao = new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
-        let totalGeral = 0;
-        let tabelaHtml = '';
 
+        const dataGeracao = new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+        let totalGeral = 0; let tabelaHtml = '';
         registros.forEach(reg => {
           const totalLinha = (reg.producao && reg.preco) ? reg.producao * reg.preco : 0;
           totalGeral += totalLinha;
           tabelaHtml += `
-            <tr>
-              <td>${formatarData(reg.data)}</td><td>${reg.nome}</td><td>${reg.status}</td><td>${reg.fazenda || '---'}</td>
-              <td>${reg.detalhes || '---'}</td><td>${reg.producao || '0'}</td><td>R$ ${reg.preco ? reg.preco.toFixed(2) : '0.00'}</td>
-              <td>R$ ${totalLinha.toFixed(2)}</td>
-            </tr>
-          `;
+            <tr><td>${formatarData(reg.data)}</td><td>${reg.nome}</td><td>${reg.status}</td><td>${reg.fazenda || '---'}</td>
+            <td>${reg.detalhes || '---'}</td><td>${reg.producao || '0'}</td><td>R$ ${reg.preco ? reg.preco.toFixed(2) : '0.00'}</td>
+            <td>R$ ${totalLinha.toFixed(2)}</td></tr>`;
         });
         
         reportContainer.innerHTML = `
@@ -135,8 +127,7 @@
               <tfoot><tr class="summary-row"><td colspan="7" style="text-align:right;">Total Geral:</td><td>R$ ${totalGeral.toFixed(2)}</td></tr></tfoot>
             </table>
             <div class="report-footer">Relatório gerado em: ${dataGeracao}</div>
-          </div>
-        `;
+          </div>`;
         
         if (registros.length > 0) {
           btnPdf.disabled = false;
@@ -149,10 +140,8 @@
 
     function gerarPdf(nomeArquivo) {
       const elemento = document.getElementById('area-impressao');
-      const opt = {
-        margin: 1, filename: `${nomeArquivo}.pdf`, image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' }
-      };
+      const opt = { margin: 1, filename: `${nomeArquivo}.pdf`, image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' } };
       html2pdf().set(opt).from(elemento).save();
     }
 

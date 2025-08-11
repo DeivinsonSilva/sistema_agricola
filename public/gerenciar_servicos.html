@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerenciamento de Serviços</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
     .container { max-width: 900px; margin: auto; }
     h1, h2 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
     .formulario-container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 40px; }
@@ -15,8 +15,9 @@
     input[type="checkbox"] { width: auto; height: 1.2em; width: 1.2em; }
     button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: background-color 0.2s; }
     button[type="submit"] { background-color: #007BFF; color: white; }
-    .btn-edit { background-color: #ffc107; color: #333; padding: 5px 10px; font-size: 12px; margin-right: 5px; }
-    .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; font-size: 12px; }
+    .btn-edit, .btn-delete { padding: 5px 10px; font-size: 12px; margin-right: 5px; }
+    .btn-edit { background-color: #ffc107; color: #333; }
+    .btn-delete { background-color: #dc3545; color: white; }
     #cancelar-edicao { background-color: #6c757d; color: white; }
     table { margin-top: 20px; border-collapse: collapse; width: 100%; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     th, td { border: 1px solid #ccc; padding: 12px; text-align: left; font-size: 14px; }
@@ -30,6 +31,10 @@
   </style>
 </head>
 <body>
+  <script>
+    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
+  </script>
+
   <div class="container">
     <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Gerenciamento de Serviços</h1>
@@ -37,10 +42,8 @@
       <h2 id="form-title">Cadastrar Novo Serviço</h2>
       <form id="servico-form">
         <input type="hidden" id="servico-id">
-        <label for="nome-servico">Nome do Serviço:</label>
-        <input type="text" id="nome-servico" required>
-        <label for="preco-servico">Preço Padrão (R$):</label>
-        <input type="number" id="preco-servico" step="0.01" required>
+        <label for="nome-servico">Nome do Serviço:</label><input type="text" id="nome-servico" required>
+        <label for="preco-servico">Preço Padrão (R$):</label><input type="number" id="preco-servico" step="0.01" required>
         <div class="checkbox-container">
           <input type="checkbox" id="status-servico" checked>
           <label for="status-servico" style="margin-top:0;">Ativo</label>
@@ -52,62 +55,51 @@
     <section class="lista-container">
       <h2>Serviços Cadastrados</h2>
       <table id="tabela-servicos">
-        <thead>
-          <tr>
-            <th>Nome do Serviço</th>
-            <th>Preço Padrão</th>
-            <th>Status</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Nome do Serviço</th><th>Preço Padrão</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
   </div>
   <script>
     const form = document.getElementById('servico-form');
-    const formTitle = document.getElementById('form-title');
     const tabelaBody = document.querySelector('#tabela-servicos tbody');
     const hiddenServicoId = document.getElementById('servico-id');
     const nomeInput = document.getElementById('nome-servico');
     const precoInput = document.getElementById('preco-servico');
     const statusCheckbox = document.getElementById('status-servico');
-    const salvarBtn = document.getElementById('btn-salvar');
-    const cancelarBtn = document.getElementById('cancelar-edicao');
     let servicos_carregados = [];
+
+    const getAuthHeader = (isPostOrPut = false) => {
+        const token = localStorage.getItem('authToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        if (isPostOrPut) {
+            headers['Content-Type'] = 'application/json';
+        }
+        return headers;
+    };
 
     async function renderizarTabela() {
       tabelaBody.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
       try {
-        const response = await fetch('/api/servicos');
+        const response = await fetch('/api/servicos', { headers: getAuthHeader() });
+        if (response.status === 401 || response.status === 403) return window.location.href = 'index.html';
+        
         servicos_carregados = await response.json();
         tabelaBody.innerHTML = '';
         servicos_carregados.forEach(servico => {
           const row = tabelaBody.insertRow();
-          const statusClass = servico.ativo ? 'status-ativa' : 'status-inativa';
-          const statusText = servico.ativo ? 'Ativo' : 'Inativo';
           row.innerHTML = `
             <td>${servico.nome}</td>
             <td class="price-cell">R$ ${servico.preco.toFixed(2).replace('.', ',')}</td>
-            <td><span class="status-span ${statusClass}">${statusText}</span></td>
+            <td><span class="status-span ${servico.ativo ? 'status-ativa' : 'status-inativa'}">${servico.ativo ? 'Ativo' : 'Inativo'}</span></td>
             <td>
               <button class="btn-edit" onclick="prepararEdicao('${servico._id}')">Editar</button>
               <button class="btn-delete" onclick="excluirServico('${servico._id}')">Excluir</button>
-            </td>
-          `;
+            </td>`;
         });
       } catch (error) {
-          tabelaBody.innerHTML = '<tr><td colspan="4">Erro ao carregar dados.</td></tr>';
-          console.error("Erro ao buscar serviços:", error);
+        tabelaBody.innerHTML = '<tr><td colspan="4">Erro ao carregar dados.</td></tr>';
       }
-    }
-
-    function limparFormulario() {
-      form.reset();
-      hiddenServicoId.value = '';
-      formTitle.textContent = 'Cadastrar Novo Serviço';
-      salvarBtn.textContent = 'Salvar';
-      cancelarBtn.classList.add('hidden');
     }
     
     function prepararEdicao(id) {
@@ -117,20 +109,28 @@
       nomeInput.value = servico.nome;
       precoInput.value = servico.preco.toFixed(2);
       statusCheckbox.checked = servico.ativo;
-      formTitle.textContent = 'Editando Serviço';
-      salvarBtn.textContent = 'Salvar Alterações';
-      cancelarBtn.classList.remove('hidden');
+      document.getElementById('form-title').textContent = 'Editando Serviço';
+      document.getElementById('btn-salvar').textContent = 'Salvar Alterações';
+      document.getElementById('cancelar-edicao').classList.remove('hidden');
       window.scrollTo(0, 0);
     }
     
     async function excluirServico(id) {
-        if (confirm('Tem certeza que deseja excluir este serviço?')) {
-            await fetch(`/api/servicos/${id}`, { method: 'DELETE' });
-            renderizarTabela();
-        }
+        if (!confirm('Tem certeza?')) return;
+        await fetch(`/api/servicos/${id}`, { method: 'DELETE', headers: getAuthHeader() });
+        renderizarTabela();
+    }
+
+    function limparFormulario() {
+        form.reset();
+        hiddenServicoId.value = '';
+        document.getElementById('form-title').textContent = 'Cadastrar Novo Serviço';
+        document.getElementById('btn-salvar').textContent = 'Salvar';
+        document.getElementById('cancelar-edicao').classList.add('hidden');
     }
 
     window.addEventListener('DOMContentLoaded', renderizarTabela);
+    document.getElementById('cancelar-edicao').addEventListener('click', limparFormulario);
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -140,33 +140,14 @@
           preco: parseFloat(precoInput.value),
           ativo: statusCheckbox.checked
         };
+        if (isNaN(servicoData.preco) || servicoData.preco < 0) return alert("Insira um preço válido.");
         
-        if (isNaN(servicoData.preco) || servicoData.preco < 0) {
-            alert("Por favor, insira um preço válido.");
-            return;
-        }
-
-        if (id) {
-            await fetch(`/api/servicos/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(servicoData)
-            });
-        } else {
-            await fetch('/api/servicos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(servicoData)
-            });
-        }
-        
+        const url = id ? `/api/servicos/${id}` : '/api/servicos';
+        const method = id ? 'PUT' : 'POST';
+        await fetch(url, { method, headers: getAuthHeader(true), body: JSON.stringify(servicoData) });
         renderizarTabela();
         limparFormulario();
     });
-    
-    cancelarBtn.addEventListener('click', limparFormulario);
-    window.prepararEdicao = prepararEdicao;
-    window.excluirServico = excluirServico;
   </script>
 </body>
 </html>

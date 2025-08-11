@@ -32,6 +32,10 @@
   </style>
 </head>
 <body>
+  <script>
+    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
+  </script>
+
   <div class="container">
     <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Gerenciamento de Trabalhadores</h1>
@@ -39,8 +43,7 @@
       <h2 id="form-title">Cadastrar Novo Trabalhador</h2>
       <form id="trabalhador-form">
         <input type="hidden" id="trabalhador-id">
-        <label for="nome-trabalhador">Nome Completo:</label>
-        <input type="text" id="nome-trabalhador" required>
+        <label for="nome-trabalhador">Nome Completo:</label><input type="text" id="nome-trabalhador" required>
         <label style="margin-bottom: -10px;">Registrado em Carteira?</label>
         <div class="radio-group">
           <input type="radio" id="registrado-sim" name="registrado" value="sim">
@@ -48,18 +51,10 @@
           <input type="radio" id="registrado-nao" name="registrado" value="nao" checked>
           <label for="registrado-nao">Não</label>
         </div>
-        
         <div id="campos-registrados-container" class="hidden">
-            <div id="data-registro-container">
-              <label for="data-registro">Data do Registro:</label>
-              <input type="date" id="data-registro">
-            </div>
-            <div id="filhos-container">
-                <label for="numero-filhos">Número de Filhos:</label>
-                <input type="number" id="numero-filhos" min="0" value="0">
-            </div>
+            <div><label for="data-registro">Data do Registro:</label><input type="date" id="data-registro"></div>
+            <div><label for="numero-filhos">Número de Filhos:</label><input type="number" id="numero-filhos" min="0" value="0"></div>
         </div>
-
         <div class="checkbox-container">
           <input type="checkbox" id="status-trabalhador" checked>
           <label for="status-trabalhador">Trabalhador Ativo</label>
@@ -88,38 +83,46 @@
     const camposRegistradosContainer = document.getElementById('campos-registrados-container');
     let trabalhadores_carregados = [];
 
+    const getAuthHeader = (isPostOrPut = false) => {
+        const token = localStorage.getItem('authToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        if (isPostOrPut) {
+            headers['Content-Type'] = 'application/json';
+        }
+        return headers;
+    };
+
     function formatarDataExibicao(dataISO) {
         if (!dataISO) return '';
         const data = new Date(dataISO);
         return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(data);
     }
-    function formatarDataInput(dataISO) {
-        return dataISO ? dataISO.split('T')[0] : '';
-    }
-
-    function toggleCamposRegistrados() {
-      camposRegistradosContainer.classList.toggle('hidden', !radioRegistradoSim.checked);
-    }
+    function formatarDataInput(dataISO) { return dataISO ? dataISO.split('T')[0] : ''; }
+    function toggleCamposRegistrados() { camposRegistradosContainer.classList.toggle('hidden', !radioRegistradoSim.checked); }
     
     async function renderizarTabela() {
       tabelaBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
-      const response = await fetch('/api/trabalhadores');
-      trabalhadores_carregados = await response.json();
-      tabelaBody.innerHTML = '';
-      trabalhadores_carregados.forEach(t => {
-        const row = tabelaBody.insertRow();
-        const registroText = t.registrado ? `Sim (${formatarDataExibicao(t.dataRegistro)})` : 'Não';
-        row.innerHTML = `
-          <td>${t.nome}</td>
-          <td>${registroText}</td>
-          <td>${t.registrado ? t.numeroFilhos : 'N/A'}</td>
-          <td><span class="status-span ${t.ativo ? 'status-ativa' : 'status-inativa'}">${t.ativo ? 'Ativo' : 'Inativo'}</span></td>
-          <td>
-            <button class="btn-edit" onclick="prepararEdicao('${t._id}')">Editar</button>
-            <button class="btn-delete" onclick="excluirTrabalhador('${t._id}')">Excluir</button>
-          </td>
-        `;
-      });
+      try {
+        const response = await fetch('/api/trabalhadores', { headers: getAuthHeader() });
+        if (response.status === 401 || response.status === 403) return window.location.href = 'index.html';
+        
+        trabalhadores_carregados = await response.json();
+        tabelaBody.innerHTML = '';
+        trabalhadores_carregados.forEach(t => {
+          const row = tabelaBody.insertRow();
+          const registroText = t.registrado ? `Sim (${formatarDataExibicao(t.dataRegistro)})` : 'Não';
+          row.innerHTML = `
+            <td>${t.nome}</td><td>${registroText}</td>
+            <td>${t.registrado ? t.numeroFilhos : 'N/A'}</td>
+            <td><span class="status-span ${t.ativo ? 'status-ativa' : 'status-inativa'}">${t.ativo ? 'Ativo' : 'Inativo'}</span></td>
+            <td>
+              <button class="btn-edit" onclick="prepararEdicao('${t._id}')">Editar</button>
+              <button class="btn-delete" onclick="excluirTrabalhador('${t._id}')">Excluir</button>
+            </td>`;
+        });
+      } catch(error) {
+        tabelaBody.innerHTML = '<tr><td colspan="5">Erro ao carregar dados.</td></tr>';
+      }
     }
 
     function prepararEdicao(id) {
@@ -140,7 +143,7 @@
     
     async function excluirTrabalhador(id) {
         if (!confirm('Tem certeza?')) return;
-        await fetch(`/api/trabalhadores/${id}`, { method: 'DELETE' });
+        await fetch(`/api/trabalhadores/${id}`, { method: 'DELETE', headers: getAuthHeader() });
         renderizarTabela();
     }
     
@@ -154,31 +157,22 @@
     }
 
     window.addEventListener('DOMContentLoaded', renderizarTabela);
-    form.addEventListener('change', (e) => {
-        if (e.target.name === 'registrado') toggleCamposRegistrados();
-    });
+    form.addEventListener('change', (e) => { if (e.target.name === 'registrado') toggleCamposRegistrados(); });
     document.getElementById('cancelar-edicao').addEventListener('click', limparFormulario);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = hiddenTrabalhadorId.value;
       const trabalhadorData = {
-        nome: nomeInput.value,
-        ativo: statusCheckbox.checked,
-        registrado: radioRegistradoSim.checked,
+        nome: nomeInput.value, ativo: statusCheckbox.checked, registrado: radioRegistradoSim.checked,
         dataRegistro: radioRegistradoSim.checked ? dataRegistroInput.value : null,
         numeroFilhos: radioRegistradoSim.checked ? parseInt(numeroFilhosInput.value, 10) : 0
       };
-      if (trabalhadorData.registrado && !trabalhadorData.dataRegistro) {
-        return alert('Por favor, informe a data do registro.');
-      }
+      if (trabalhadorData.registrado && !trabalhadorData.dataRegistro) return alert('Informe a data do registro.');
+
       const url = id ? `/api/trabalhadores/${id}` : '/api/trabalhadores';
       const method = id ? 'PUT' : 'POST';
-      await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(trabalhadorData)
-      });
+      await fetch(url, { method, headers: getAuthHeader(true), body: JSON.stringify(trabalhadorData) });
       renderizarTabela();
       limparFormulario();
     });

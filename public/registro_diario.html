@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registro de Trabalho Diário</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
     .container { max-width: 1200px; margin: auto; }
     h1, h2, h3 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
     .main-layout { display: flex; flex-wrap: wrap; gap: 40px; margin-top: 20px; }
@@ -31,12 +31,15 @@
   </style>
 </head>
 <body>
+  <script>
+    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
+  </script>
+
   <div class="container">
     <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Registro de Trabalho Diário</h1>
     <section>
-      <h2>1. Selecione a Data do Registro</h2>
-      <input type="date" id="data-registro">
+      <h2>1. Selecione a Data do Registro</h2><input type="date" id="data-registro">
     </section>
     <div class="main-layout">
       <aside class="trabalhadores-disponiveis">
@@ -46,27 +49,14 @@
       <main class="formulario-registro">
         <h3>2. Lançar Atividade</h3>
         <form id="registro-form">
-          <label for="nome-trabalhador">Nome do Trabalhador:</label>
-          <select id="nome-trabalhador" required></select>
-          <div class="checkbox-container">
-            <input type="checkbox" id="marcar-falta">
-            <label for="marcar-falta" style="margin-top: 0;">Marcar como Falta</label>
-          </div>
-          <div id="motivo-falta-container" class="hidden">
-            <label for="motivo-falta">Motivo da Falta:</label>
-            <select id="motivo-falta"><option>Justificada</option><option>Não Justificada</option></select>
-          </div>
+          <label for="nome-trabalhador">Trabalhador:</label><select id="nome-trabalhador" required></select>
+          <div class="checkbox-container"><input type="checkbox" id="marcar-falta"><label for="marcar-falta" style="margin-top: 0;">Marcar como Falta</label></div>
+          <div id="motivo-falta-container" class="hidden"><label for="motivo-falta">Motivo:</label><select id="motivo-falta"><option>Justificada</option><option>Não Justificada</option></select></div>
           <div id="producao-container">
-            <label for="fazenda">Fazenda:</label>
-            <select id="fazenda" required></select>
-            
-            <label for="servico">Serviço:</label>
-            <select id="servico" required></select>
-
-            <label for="producao">Produção:</label>
-            <input type="number" id="producao" step="0.01">
-            <label for="preco">Preço (R$):</label>
-            <input type="number" id="preco" step="0.01">
+            <label for="fazenda">Fazenda:</label><select id="fazenda" required></select>
+            <label for="servico">Serviço:</label><select id="servico" required></select>
+            <label for="producao">Produção:</label><input type="number" id="producao" step="0.01">
+            <label for="preco">Preço (R$):</label><input type="number" id="preco" step="0.01">
           </div>
           <button type="submit">Adicionar à Lista</button>
         </form>
@@ -75,11 +65,7 @@
     <section>
       <h2>3. Resumo do Dia</h2>
       <table id="tabela-registros">
-        <thead>
-          <tr>
-            <th>Nome</th><th>Status</th><th>Fazenda</th><th>Serviço/Motivo</th><th>Produção</th><th>Preço Unit.</th><th>Total (R$)</th><th>Ações</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Nome</th><th>Status</th><th>Fazenda</th><th>Serviço/Motivo</th><th>Produção</th><th>Preço Unit.</th><th>Total (R$)</th><th>Ações</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
@@ -90,7 +76,6 @@
   </div>
   <script>
     let todosTrabalhadores = [];
-    let todosServicos = [];
     let registrosDoDia = []; 
     const dataInput = document.getElementById('data-registro');
     const form = document.getElementById('registro-form');
@@ -105,61 +90,57 @@
     const servicoSelect = document.getElementById('servico');
     const precoInput = document.getElementById('preco');
 
-    function setDefaultDate() {
-      dataInput.value = new Date().toISOString().split('T')[0];
-    }
+    const getAuthHeader = (isPostOrPut = false) => {
+        const token = localStorage.getItem('authToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        if (isPostOrPut) headers['Content-Type'] = 'application/json';
+        return headers;
+    };
+
+    function setDefaultDate() { dataInput.value = new Date().toISOString().split('T')[0]; }
     
     async function carregarDadosIniciais() {
         try {
+            const authHeaders = { headers: getAuthHeader() };
             const [trabalhadoresRes, fazendasRes, servicosRes] = await Promise.all([
-                fetch('/api/trabalhadores'),
-                fetch('/api/fazendas'),
-                fetch('/api/servicos')
+                fetch('/api/trabalhadores', authHeaders), fetch('/api/fazendas', authHeaders), fetch('/api/servicos', authHeaders)
             ]);
+            
+            if (trabalhadoresRes.status === 401) return window.location.href = 'index.html';
+
             todosTrabalhadores = await trabalhadoresRes.json();
             const fazendas = await fazendasRes.json();
-            todosServicos = await servicosRes.json(); // Armazena todos os serviços
+            const todosServicos = await servicosRes.json();
 
-            // MUDANÇA AQUI: Popula o <select> de fazendas
-            fazendaSelect.innerHTML = '<option value="">Selecione uma fazenda</option>';
-            fazendas.filter(f => f.ativa).forEach(f => {
-                fazendaSelect.innerHTML += `<option value="${f.nome}">${f.nome}</option>`;
-            });
+            fazendaSelect.innerHTML = '<option value="">Selecione...</option>';
+            fazendas.filter(f => f.ativa).forEach(f => fazendaSelect.innerHTML += `<option value="${f.nome}">${f.nome}</option>`);
 
-            // MUDANÇA AQUI: Popula o <select> de serviços
-            servicoSelect.innerHTML = '<option value="">Selecione um serviço</option>';
-            todosServicos.filter(s => s.ativo).forEach(s => {
-                servicoSelect.innerHTML += `<option value="${s.nome}" data-preco="${s.preco}">${s.nome}</option>`;
-            });
+            servicoSelect.innerHTML = '<option value="">Selecione...</option>';
+            todosServicos.filter(s => s.ativo).forEach(s => servicoSelect.innerHTML += `<option value="${s.nome}" data-preco="${s.preco}">${s.nome}</option>`);
             
             atualizarListaTrabalhadores();
         } catch (error) {
-            console.error("Erro ao carregar dados iniciais:", error);
             alert("Não foi possível carregar os dados iniciais. Verifique a conexão com a API.");
         }
     }
 
     function atualizarListaTrabalhadores() {
       listaAtivosUl.innerHTML = '';
-      nomeSelect.innerHTML = '<option value="">Selecione um trabalhador</option>';
+      nomeSelect.innerHTML = '<option value="">Selecione...</option>';
       const trabalhadoresJaRegistrados = registrosDoDia.map(r => r.nome);
       const trabalhadoresDisponiveis = todosTrabalhadores.filter(t => t.ativo && !trabalhadoresJaRegistrados.includes(t.nome));
-      
       trabalhadoresDisponiveis.forEach(t => {
         listaAtivosUl.innerHTML += `<li>${t.nome}</li>`;
         nomeSelect.innerHTML += `<option value="${t.nome}">${t.nome}</option>`;
       });
     }
 
-    // Substitua a função handleFaltaToggle() inteira por esta:
     function handleFaltaToggle() {
-        const isFalta = faltaCheckbox.checked;
-        motivoContainer.classList.toggle('hidden', !isFalta);
-        producaoContainer.classList.toggle('hidden', isFalta);
-
-        // Linhas adicionadas para corrigir o problema
-        fazendaSelect.required = !isFalta;
-        servicoSelect.required = !isFalta;
+      const isFalta = faltaCheckbox.checked;
+      motivoContainer.classList.toggle('hidden', !isFalta);
+      producaoContainer.classList.toggle('hidden', isFalta);
+      fazendaSelect.required = !isFalta;
+      servicoSelect.required = !isFalta;
     }
 
     function atualizarTabelaRegistros() {
@@ -169,15 +150,11 @@
         row.className = reg.status === 'Falta' ? 'row-falta' : 'row-presenca';
         const total = reg.producao && reg.preco ? (reg.producao * reg.preco).toFixed(2) : '0.00';
         row.innerHTML = `
-          <td contenteditable="true" data-field="nome">${reg.nome}</td>
-          <td><b>${reg.status}</b></td>
-          <td contenteditable="true" data-field="fazenda">${reg.fazenda || '---'}</td>
-          <td contenteditable="true" data-field="detalhes">${reg.detalhes}</td>
-          <td contenteditable="true" data-field="producao">${reg.producao || '---'}</td>
-          <td contenteditable="true" data-field="preco">${reg.preco ? `${reg.preco.toFixed(2)}` : '---'}</td>
+          <td>${reg.nome}</td><td><b>${reg.status}</b></td><td>${reg.fazenda || '---'}</td>
+          <td>${reg.detalhes}</td><td>${reg.producao || '---'}</td>
+          <td>${reg.preco ? `${reg.preco.toFixed(2)}` : '---'}</td>
           <td class="total-cell"><b>R$ ${total}</b></td>
-          <td><button class="remove-btn" onclick="removerRegistro(${index})">Remover</button></td>
-        `;
+          <td><button class="remove-btn" onclick="removerRegistro(${index})">Remover</button></td>`;
       });
     }
 
@@ -188,21 +165,13 @@
       atualizarListaTrabalhadores();
     }
     
-    // MUDANÇA AQUI: Listener para preencher o preço automaticamente
     servicoSelect.addEventListener('change', (e) => {
         const selectedOption = e.target.options[e.target.selectedIndex];
-        const preco = selectedOption.dataset.preco;
-        if (preco) {
-            precoInput.value = parseFloat(preco).toFixed(2);
-        } else {
-            precoInput.value = '';
-        }
+        precoInput.value = parseFloat(selectedOption.dataset.preco || 0).toFixed(2);
     });
 
     window.addEventListener('DOMContentLoaded', () => {
-      setDefaultDate();
-      carregarDadosIniciais();
-      handleFaltaToggle();
+      setDefaultDate(); carregarDadosIniciais(); handleFaltaToggle();
     });
     faltaCheckbox.addEventListener('change', handleFaltaToggle);
 
@@ -221,42 +190,19 @@
       atualizarTabelaRegistros();
       atualizarListaTrabalhadores();
       form.reset();
-      precoInput.value = ''; // Limpa o campo de preço
+      precoInput.value = '';
       handleFaltaToggle();
     });
 
-    tabelaBody.addEventListener('blur', (event) => {
-        const target = event.target;
-        if (!target.isContentEditable) return;
-        const row = target.closest('tr');
-        const rowIndex = Array.from(tabelaBody.children).indexOf(row);
-        const field = target.dataset.field;
-        const newValue = target.innerText;
-        const registro = registrosDoDia[rowIndex];
-        if (registro) {
-            if (field === 'producao' || field === 'preco') {
-                registro[field] = parseFloat(newValue.replace('R$', '').replace(',', '.')) || 0;
-            } else {
-                registro[field] = newValue;
-            }
-            if ((field === 'producao' || field === 'preco') && registro.status !== 'Falta') {
-                const totalCell = row.querySelector('.total-cell');
-                totalCell.innerHTML = `<b>R$ ${(registro.producao * registro.preco).toFixed(2)}</b>`;
-            }
-        }
-    }, true);
-
     enviarBtn.addEventListener('click', async () => {
       if (registrosDoDia.length === 0) return alert("Não há registros para enviar.");
-      if (!confirm(`Enviar ${registrosDoDia.length} registros para o banco de dados?`)) return;
+      if (!confirm(`Enviar ${registrosDoDia.length} registros?`)) return;
       
       enviarBtn.textContent = 'Enviando...';
       enviarBtn.disabled = true;
       try {
         const response = await fetch('/api/registros', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(registrosDoDia)
+            method: 'POST', headers: getAuthHeader(true), body: JSON.stringify(registrosDoDia)
         });
         if (!response.ok) throw new Error('Falha no servidor ao salvar os dados.');
         

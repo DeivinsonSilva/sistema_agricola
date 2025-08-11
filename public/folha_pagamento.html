@@ -36,10 +36,13 @@
   </style>
 </head>
 <body>
+  <script>
+    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
+  </script>
+
   <div class="container">
     <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Folha de Pagamento</h1>
-
     <div class="no-print">
       <h2>Filtros e Ações</h2>
       <div class="filtros">
@@ -58,10 +61,8 @@
         </div>
       </div>
     </div>
-    
     <div id="report-container"></div>
   </div>
-
   <script>
     const dataInicioInput = document.getElementById('data-inicio');
     const dataFimInput = document.getElementById('data-fim');
@@ -73,9 +74,9 @@
     const inssInput = document.getElementById('inss-percent');
     const salarioFamiliaInput = document.getElementById('salario-familia-valor');
     const configRegistradosDiv = document.getElementById('configuracoes-registrados');
-
-    // Mapeamento global dos dados dos trabalhadores carregados
     let payrollData = {};
+
+    const getAuthHeader = () => ({ headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } });
 
     function formatarDataHeader(dataStr) {
         const dias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
@@ -85,10 +86,7 @@
         return `${diaSemana}<br>${dia}`;
     }
 
-    // Função para mostrar/esconder as configurações
-    function toggleConfiguracoes() {
-        configRegistradosDiv.classList.toggle('hidden', tipoTrabalhadorSelect.value !== 'registrados');
-    }
+    function toggleConfiguracoes() { configRegistradosDiv.classList.toggle('hidden', tipoTrabalhadorSelect.value !== 'registrados'); }
 
     async function gerarFolha() {
         const tipo = tipoTrabalhadorSelect.value;
@@ -96,13 +94,13 @@
         const dataFim = dataFimInput.value;
         if (!dataInicio || !dataFim) return alert("Selecione as datas.");
         
-        reportContainer.innerHTML = "<p>Gerando folha de pagamento...</p>";
-        btnPdf.disabled = true;
-        btnExcel.disabled = true;
+        reportContainer.innerHTML = "<p>Gerando folha...</p>";
+        btnPdf.disabled = true; btnExcel.disabled = true;
 
         try {
-            const response = await fetch(`/api/folha-pagamento?dataInicio=${dataInicio}&dataFim=${dataFim}&tipo=${tipo}`);
-            payrollData = await response.json(); // Salva os dados na variável global
+            const response = await fetch(`/api/folha-pagamento?dataInicio=${dataInicio}&dataFim=${dataFim}&tipo=${tipo}`, getAuthHeader());
+            if (response.status === 401 || response.status === 403) return window.location.href = 'index.html';
+            payrollData = await response.json();
             
             const startDate = new Date(dataInicio + 'T12:00:00');
             const endDate = new Date(dataFim + 'T12:00:00');
@@ -133,12 +131,8 @@
                     else linha += `<td ${editavel}>-</td>`;
                 });
                 if(tipo === 'registrados') {
-                    linha += `<td contenteditable="true" class="feriado">0.00</td>
-                              <td class="salario-total">0.00</td>
-                              <td class="inss">0.00</td>
-                              <td class="salario-familia">0.00</td>
-                              <td contenteditable="true" class="descontos">0.00</td>
-                              <td class="liquido">0.00</td>`;
+                    linha += `<td contenteditable="true" class="feriado">0.00</td><td class="salario-total">0.00</td><td class="inss">0.00</td>
+                              <td class="salario-familia">0.00</td><td contenteditable="true" class="descontos">0.00</td><td class="liquido">0.00</td>`;
                 } else {
                     linha += `<td class="total-nao-registrado">0.00</td>`;
                 }
@@ -153,18 +147,12 @@
                 <div class="report-header"><h2>Folha de Pagamento</h2><h3>Período de ${dataInicio.split('-')[2]}/${dataInicio.split('-')[1]} a ${dataFim.split('-')[2]}/${dataFim.split('-')[1]}</h3></div>
                 ${tableHtml}
                 <div class="report-footer">Folha gerada em: ${dataGeracao}</div>
-              </div>
-            `;
+              </div>`;
             
             recalcularTudo();
-            if (Object.keys(payrollData).length > 0) {
-              btnPdf.disabled = false;
-              btnExcel.disabled = false;
-            }
-
+            if (Object.keys(payrollData).length > 0) { btnPdf.disabled = false; btnExcel.disabled = false; }
         } catch (error) {
             reportContainer.innerHTML = `<p style='color:red;'>Erro ao gerar folha.</p>`;
-            console.error(error);
         }
     }
     
@@ -174,12 +162,10 @@
         if (!table) return;
 
         const rows = table.querySelectorAll('tbody tr');
-        
         rows.forEach(row => {
             const nome = row.cells[0].innerText;
             const trabalhador = payrollData[nome];
             let totalDias = 0;
-
             if (tipo === 'nao_registrados') {
                 for (let i = 1; i < row.cells.length - 1; i++) {
                     const valor = parseFloat(row.cells[i].innerText);
@@ -189,7 +175,6 @@
             } else if (tipo === 'registrados' && trabalhador) {
                 const inssPercent = parseFloat(inssInput.value) / 100;
                 const salarioFamiliaValor = parseFloat(salarioFamiliaInput.value);
-
                 const dataCellCount = table.querySelector('thead tr').cells.length - 6;
                 for (let i = 1; i <= dataCellCount; i++) {
                     const valor = parseFloat(row.cells[i].innerText);
@@ -198,12 +183,10 @@
                 const feriado = parseFloat(row.querySelector('.feriado').innerText) || 0;
                 const salarioTotal = totalDias + feriado;
                 const inss = salarioTotal * inssPercent;
-                // CORREÇÃO: Recalcula o salário família aqui
                 const salFamilia = trabalhador.numeroFilhos * salarioFamiliaValor;
                 const descontos = parseFloat(row.querySelector('.descontos').innerText) || 0;
                 const liquido = salarioTotal - inss + salFamilia - descontos;
                 
-                // CORREÇÃO: Atualiza a célula do salário família
                 row.querySelector('.salario-familia').innerText = salFamilia.toFixed(2);
                 row.querySelector('.salario-total').innerText = salarioTotal.toFixed(2);
                 row.querySelector('.inss').innerText = inss.toFixed(2);
@@ -212,19 +195,15 @@
         });
     }
 
-    // Adiciona os listeners de eventos
     tipoTrabalhadorSelect.addEventListener('change', toggleConfiguracoes);
     [inssInput, salarioFamiliaInput].forEach(input => input.addEventListener('change', recalcularTudo));
-    reportContainer.addEventListener('input', (e) => {
-        if (e.target.isContentEditable) recalcularTudo();
-    });
+    reportContainer.addEventListener('input', (e) => { if (e.target.isContentEditable) recalcularTudo(); });
     btnGerar.addEventListener('click', gerarFolha);
     
     btnPdf.addEventListener('click', () => {
         const elemento = document.getElementById('area-impressao');
-        const opt = { margin: 1, filename: `folha_pagamento.pdf`, image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' } };
-        html2pdf().set(opt).from(elemento).save();
+        html2pdf().set({ margin: 1, filename: `folha_pagamento.pdf`, image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' } }).from(elemento).save();
     });
 
     btnExcel.addEventListener('click', () => {
@@ -233,7 +212,6 @@
         XLSX.writeFile(workbook, `folha_pagamento_${dataInicioInput.value}_a_${dataFimInput.value}.xlsx`);
     });
     
-    // Inicializa a página
     toggleConfiguracoes();
   </script>
 </body>

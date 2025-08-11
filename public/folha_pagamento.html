@@ -5,48 +5,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Folha de Pagamento</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
     .container { max-width: 95%; margin: auto; }
-    h1, h2 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    h1, h2, h3 { color: #0056b3; }
+    h1, h2 { border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
     .no-print { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 30px; }
     .filtros { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+    .configuracoes-extra { background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 15px; margin-top: 20px; border-radius: 8px; }
+    .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
     label { display: block; font-weight: 600; margin-bottom: 5px; }
-    input[type="date"] { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+    input[type="date"], input[type="number"], select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
     button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: background-color 0.2s; }
     #btn-gerar { background-color: #007BFF; }
-    #btn-pdf { background-color: #dc3545; }
+    #btn-pdf, #btn-excel { background-color: #17a2b8; }
     button:disabled { background-color: #ccc; cursor: not-allowed; }
     #area-impressao { background-color: white; padding: 1.5cm; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 9pt; }
-    th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 8pt; }
+    th, td { border: 1px solid #ddd; padding: 5px; text-align: center; }
     th { background-color: #f2f2f2; white-space: nowrap; }
     td.nome { text-align: left; font-weight: bold; }
+    td[contenteditable="true"] { background-color: #fefde8; }
     .report-header { text-align: center; margin-bottom: 30px; }
     .report-header h2 { border: none; }
     .report-footer { text-align: right; margin-top: 20px; font-size: 9pt; color: #777; }
     tfoot tr { font-weight: bold; background-color: #f8f9fa; }
     .link-voltar { display: inline-block; margin-bottom: 20px; color: #0056b3; text-decoration: none; font-weight: bold; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <a href="dashboard.html" class="link-voltar">&larr; Voltar ao Painel</a>
+    <a href="dashboard" class="link-voltar">&larr; Voltar ao Painel</a>
     <h1>Folha de Pagamento</h1>
 
     <div class="no-print">
       <h2>Filtros e Ações</h2>
       <div class="filtros">
-        <div>
-          <label for="data-inicio">Data de Início:</label>
-          <input type="date" id="data-inicio">
-        </div>
-        <div>
-          <label for="data-fim">Data de Fim:</label>
-          <input type="date" id="data-fim">
-        </div>
+        <div><label for="tipo-trabalhador">Tipo de Folha:</label><select id="tipo-trabalhador"><option value="registrados">Registrados</option><option value="nao_registrados">Não Registrados</option></select></div>
+        <div><label for="data-inicio">Data de Início:</label><input type="date" id="data-inicio"></div>
+        <div><label for="data-fim">Data de Fim:</label><input type="date" id="data-fim"></div>
         <button id="btn-gerar">Gerar Folha</button>
-        <button id="btn-pdf" disabled>Imprimir / Baixar PDF</button>
+        <button id="btn-pdf" disabled>Baixar PDF</button>
+        <button id="btn-excel" disabled>Exportar Excel</button>
+      </div>
+      <div id="configuracoes-registrados" class="configuracoes-extra">
+        <h3>Configurações para Registrados</h3>
+        <div class="config-grid">
+            <div><label for="inss-percent">INSS (%):</label><input type="number" id="inss-percent" value="8" step="0.1"></div>
+            <div><label for="salario-familia-valor">Salário Família (por filho):</label><input type="number" id="salario-familia-valor" value="0.00" step="0.01"></div>
+        </div>
       </div>
     </div>
     
@@ -58,115 +67,174 @@
     const dataFimInput = document.getElementById('data-fim');
     const btnGerar = document.getElementById('btn-gerar');
     const btnPdf = document.getElementById('btn-pdf');
+    const btnExcel = document.getElementById('btn-excel');
     const reportContainer = document.getElementById('report-container');
+    const tipoTrabalhadorSelect = document.getElementById('tipo-trabalhador');
+    const inssInput = document.getElementById('inss-percent');
+    const salarioFamiliaInput = document.getElementById('salario-familia-valor');
+    const configRegistradosDiv = document.getElementById('configuracoes-registrados');
+
+    // Mapeamento global dos dados dos trabalhadores carregados
+    let payrollData = {};
 
     function formatarDataHeader(dataStr) {
         const dias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-        const data = new Date(dataStr + 'T12:00:00'); // Use timezone-neutral time
+        const data = new Date(dataStr + 'T12:00:00');
         const diaSemana = dias[data.getUTCDay()];
-        const [ano, mes, dia] = dataStr.split('-');
-        return `${diaSemana}<br>${dia}/${mes}`;
+        const [,, dia] = dataStr.split('-');
+        return `${diaSemana}<br>${dia}`;
     }
 
-    btnGerar.addEventListener('click', async () => {
+    // Função para mostrar/esconder as configurações
+    function toggleConfiguracoes() {
+        configRegistradosDiv.classList.toggle('hidden', tipoTrabalhadorSelect.value !== 'registrados');
+    }
+
+    async function gerarFolha() {
+        const tipo = tipoTrabalhadorSelect.value;
         const dataInicio = dataInicioInput.value;
         const dataFim = dataFimInput.value;
-
-        if (!dataInicio || !dataFim) {
-            return alert("Por favor, selecione a data de início e fim.");
-        }
+        if (!dataInicio || !dataFim) return alert("Selecione as datas.");
         
-        reportContainer.innerHTML = "<p>Gerando folha de pagamento, aguarde...</p>";
+        reportContainer.innerHTML = "<p>Gerando folha de pagamento...</p>";
         btnPdf.disabled = true;
+        btnExcel.disabled = true;
 
         try {
-            const response = await fetch(`/api/folha-pagamento?dataInicio=${dataInicio}&dataFim=${dataFim}`);
-            const payrollData = await response.json();
+            const response = await fetch(`/api/folha-pagamento?dataInicio=${dataInicio}&dataFim=${dataFim}&tipo=${tipo}`);
+            payrollData = await response.json(); // Salva os dados na variável global
             
             const startDate = new Date(dataInicio + 'T12:00:00');
             const endDate = new Date(dataFim + 'T12:00:00');
             const dateHeaders = [];
-            for (let dt = startDate; dt <= endDate; dt.setDate(dt.getDate() + 1)) {
+            for (let dt = new Date(startDate); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
                 dateHeaders.push(dt.toISOString().split('T')[0]);
             }
             
+            let tableHtml = `<table id="tabela-pagamento">`;
             let headerHtml = '<th>Nomes</th>';
             dateHeaders.forEach(date => headerHtml += `<th>${formatarDataHeader(date)}</th>`);
-            headerHtml += '<th>Salário Total</th><th>Descontos</th><th>Líquido a Receber</th>';
-
-            let bodyHtml = '';
-            const totaisColuna = new Array(dateHeaders.length).fill(0);
-            let totalSalarios = 0, totalDescontos = 0, totalLiquido = 0;
-
-            Object.keys(payrollData).sort().forEach(nome => {
-                let salarioTotalTrabalhador = 0;
-                let linha = `<tr_><td class="nome">${nome}</td>`;
-                
-                dateHeaders.forEach((date, index) => {
-                    const valor = payrollData[nome][date];
-                    if (valor === 'FALTA') {
-                        linha += `<td>F</td>`;
-                    } else if (typeof valor === 'number') {
-                        linha += `<td>${valor.toFixed(2)}</td>`;
-                        salarioTotalTrabalhador += valor;
-                        totaisColuna[index] += valor;
-                    } else {
-                        linha += `<td>-</td>`;
-                    }
-                });
-                
-                const descontosTrabalhador = 0; // Placeholder para futura implementação
-                const liquidoTrabalhador = salarioTotalTrabalhador - descontosTrabalhador;
-
-                linha += `<td>${salarioTotalTrabalhador.toFixed(2)}</td>`;
-                linha += `<td>${descontosTrabalhador.toFixed(2)}</td>`;
-                linha += `<td>${liquidoTrabalhador.toFixed(2)}</td></tr_>`.replace(/_/g, '');
-                bodyHtml += linha;
-
-                totalSalarios += salarioTotalTrabalhador;
-                totalDescontos += descontosTrabalhador;
-                totalLiquido += liquidoTrabalhador;
-            });
+            if (tipo === 'registrados') {
+                headerHtml += '<th>Feriado</th><th>Salário Total</th><th>INSS</th><th>Sal. Família</th><th>Descontos</th><th>Líquido a Receber</th>';
+            } else {
+                headerHtml += '<th>Total a Receber</th>';
+            }
+            tableHtml += `<thead><tr>${headerHtml}</tr></thead>`;
             
-            let footerHtml = '<td><strong>TOTAL</strong></td>';
-            totaisColuna.forEach(total => footerHtml += `<td>${total.toFixed(2)}</td>`);
-            footerHtml += `<td>${totalSalarios.toFixed(2)}</td>`;
-            footerHtml += `<td>${totalDescontos.toFixed(2)}</td>`;
-            footerHtml += `<td>${totalLiquido.toFixed(2)}</td>`;
-
+            let bodyHtml = '';
+            Object.keys(payrollData).sort().forEach(nome => {
+                const trabalhador = payrollData[nome];
+                let linha = `<tr><td class="nome">${nome}</td>`;
+                dateHeaders.forEach(date => {
+                    const valor = trabalhador.dias[date];
+                    const editavel = tipo === 'nao_registrados' ? 'contenteditable="true"' : '';
+                    if (valor === 'FALTA') linha += `<td ${editavel}>F</td>`;
+                    else if (typeof valor === 'number') linha += `<td ${editavel}>${valor.toFixed(2)}</td>`;
+                    else linha += `<td ${editavel}>-</td>`;
+                });
+                if(tipo === 'registrados') {
+                    linha += `<td contenteditable="true" class="feriado">0.00</td>
+                              <td class="salario-total">0.00</td>
+                              <td class="inss">0.00</td>
+                              <td class="salario-familia">0.00</td>
+                              <td contenteditable="true" class="descontos">0.00</td>
+                              <td class="liquido">0.00</td>`;
+                } else {
+                    linha += `<td class="total-nao-registrado">0.00</td>`;
+                }
+                linha += `</tr>`;
+                bodyHtml += linha;
+            });
+            tableHtml += `<tbody>${bodyHtml}</tbody><tfoot></tfoot></table>`;
+            
             const dataGeracao = new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
             reportContainer.innerHTML = `
               <div id="area-impressao">
-                <div class="report-header">
-                  <h2>Folha de Pagamento</h2>
-                  <p>Período de ${formatarDataHeader(dataInicio).split('<br>')[1]} a ${formatarDataHeader(dataFim).split('<br>')[1].split('/20')[0]}</p>
-                </div>
-                <table>
-                  <thead><tr>${headerHtml}</tr></thead>
-                  <tbody>${bodyHtml}</tbody>
-                  <tfoot><tr>${footerHtml}</tr></tfoot>
-                </table>
+                <div class="report-header"><h2>Folha de Pagamento</h2><h3>Período de ${dataInicio.split('-')[2]}/${dataInicio.split('-')[1]} a ${dataFim.split('-')[2]}/${dataFim.split('-')[1]}</h3></div>
+                ${tableHtml}
                 <div class="report-footer">Folha gerada em: ${dataGeracao}</div>
               </div>
             `;
-            btnPdf.disabled = false;
+            
+            recalcularTudo();
+            if (Object.keys(payrollData).length > 0) {
+              btnPdf.disabled = false;
+              btnExcel.disabled = false;
+            }
 
         } catch (error) {
-            reportContainer.innerHTML = "<p style='color:red;'>Erro ao gerar folha de pagamento.</p>";
+            reportContainer.innerHTML = `<p style='color:red;'>Erro ao gerar folha.</p>`;
             console.error(error);
         }
-    });
+    }
+    
+    function recalcularTudo() {
+        const tipo = tipoTrabalhadorSelect.value;
+        const table = document.getElementById('tabela-pagamento');
+        if (!table) return;
 
+        const rows = table.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const nome = row.cells[0].innerText;
+            const trabalhador = payrollData[nome];
+            let totalDias = 0;
+
+            if (tipo === 'nao_registrados') {
+                for (let i = 1; i < row.cells.length - 1; i++) {
+                    const valor = parseFloat(row.cells[i].innerText);
+                    if (!isNaN(valor)) totalDias += valor;
+                }
+                row.querySelector('.total-nao-registrado').innerText = totalDias.toFixed(2);
+            } else if (tipo === 'registrados' && trabalhador) {
+                const inssPercent = parseFloat(inssInput.value) / 100;
+                const salarioFamiliaValor = parseFloat(salarioFamiliaInput.value);
+
+                const dataCellCount = table.querySelector('thead tr').cells.length - 6;
+                for (let i = 1; i <= dataCellCount; i++) {
+                    const valor = parseFloat(row.cells[i].innerText);
+                    if (!isNaN(valor)) totalDias += valor;
+                }
+                const feriado = parseFloat(row.querySelector('.feriado').innerText) || 0;
+                const salarioTotal = totalDias + feriado;
+                const inss = salarioTotal * inssPercent;
+                // CORREÇÃO: Recalcula o salário família aqui
+                const salFamilia = trabalhador.numeroFilhos * salarioFamiliaValor;
+                const descontos = parseFloat(row.querySelector('.descontos').innerText) || 0;
+                const liquido = salarioTotal - inss + salFamilia - descontos;
+                
+                // CORREÇÃO: Atualiza a célula do salário família
+                row.querySelector('.salario-familia').innerText = salFamilia.toFixed(2);
+                row.querySelector('.salario-total').innerText = salarioTotal.toFixed(2);
+                row.querySelector('.inss').innerText = inss.toFixed(2);
+                row.querySelector('.liquido').innerText = liquido.toFixed(2);
+            }
+        });
+    }
+
+    // Adiciona os listeners de eventos
+    tipoTrabalhadorSelect.addEventListener('change', toggleConfiguracoes);
+    [inssInput, salarioFamiliaInput].forEach(input => input.addEventListener('change', recalcularTudo));
+    reportContainer.addEventListener('input', (e) => {
+        if (e.target.isContentEditable) recalcularTudo();
+    });
+    btnGerar.addEventListener('click', gerarFolha);
+    
     btnPdf.addEventListener('click', () => {
         const elemento = document.getElementById('area-impressao');
-        const opt = {
-          margin: 1, filename: `folha_pagamento_${dataInicioInput.value}_a_${dataFimInput.value}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' }
-        };
+        const opt = { margin: 1, filename: `folha_pagamento.pdf`, image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' } };
         html2pdf().set(opt).from(elemento).save();
     });
 
+    btnExcel.addEventListener('click', () => {
+        const tabela = document.getElementById('tabela-pagamento');
+        const workbook = XLSX.utils.table_to_book(tabela, { sheet: "Folha de Pagamento" });
+        XLSX.writeFile(workbook, `folha_pagamento_${dataInicioInput.value}_a_${dataFimInput.value}.xlsx`);
+    });
+    
+    // Inicializa a página
+    toggleConfiguracoes();
   </script>
 </body>
 </html>

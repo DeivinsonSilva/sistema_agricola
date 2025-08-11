@@ -5,75 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Controle Agrícola - Início</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
-    .container { max-width: 900px; margin: auto; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 1200px; margin: auto; }
     h1, h2, h3 { color: #0056b3; }
     h1 { border-bottom: 2px solid #e9ecef; padding-bottom: 10px; text-align: center; }
     h2.subtitle { text-align: center; color: #6c757d; margin-top: -10px; margin-bottom: 40px; }
-    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; margin-top: 20px; }
-    .dashboard-card { display: block; background-color: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); text-decoration: none; color: inherit; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
+    .dashboard-card { display: block; background-color: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); text-decoration: none; color: inherit; transition: all 0.2s ease-in-out; }
     .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .card-icon { font-size: 3rem; text-align: center; margin-bottom: 15px; }
     .card-title { text-align: center; font-size: 1.25rem; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
     .card-description { font-size: 0.9rem; color: #555; text-align: center; min-height: 60px; }
     .logout-footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; }
     #logout-button { background-color: #dc3545; color: white; padding: 10px 25px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; transition: background-color 0.2s; }
-    #logout-button:hover { background-color: #c82333; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Painel de Controle</h1>
+    <h1>Painel Principal de Controle</h1>
     <h2 class="subtitle">Sistema de Controle de Trabalho Agrícola</h2>
-
     <main class="dashboard-grid">
-      <a href="registro_diario.html" class="dashboard-card">
-        <div class="card-icon">🗓️</div>
-        <h3 class="card-title">Registro de Trabalho Diário</h3>
-        <p class="card-description">Lance a produção diária, presenças e faltas dos trabalhadores diretamente no campo.</p>
+      <a href="registro_diario" class="dashboard-card">
+        <div class="card-icon">🗓️</div><h3 class="card-title">Registro Diário</h3>
+        <p class="card-description">Lance a produção, presenças e faltas dos trabalhadores no campo.</p>
       </a>
-      
-      <a href="relatorios.html" class="dashboard-card">
-        <div class="card-icon">📊</div>
-        <h3 class="card-title">Relatórios</h3>
-        <p class="card-description">Visualize, imprima e exporte os registros de trabalho mensais ou diários em formato PDF.</p>
+      <a href="folha_pagamento" class="dashboard-card">
+        <div class="card-icon">💰</div><h3 class="card-title">Folha de Pagamento</h3>
+        <p class="card-description">Gere a folha para registrados e não registrados com base nos lançamentos.</p>
       </a>
-
-      <a href="folha_pagamento.html" class="dashboard-card">
-        <div class="card-icon">💰</div>
-        <h3 class="card-title">Folha de Pagamento</h3>
-        <p class="card-description">Gere a folha de pagamento para um período selecionado com base nos registros diários.</p>
+      <a href="relatorios" class="dashboard-card">
+        <div class="card-icon">📊</div><h3 class="card-title">Relatórios</h3>
+        <p class="card-description">Exporte os registros de trabalho mensais ou diários em formato PDF.</p>
       </a>
-
-      <a href="gerenciar_fazendas.html" class="dashboard-card">
-        <div class="card-icon">🏞️</div>
-        <h3 class="card-title">Gerenciar Fazendas</h3>
-        <p class="card-description">Cadastre, edite, ative ou inative as fazendas e propriedades rurais.</p>
+      <a href="gerenciar_trabalhadores" class="dashboard-card">
+        <div class="card-icon">👨‍👩‍👧‍👦</div><h3 class="card-title">Trabalhadores</h3>
+        <p class="card-description">Adicione, edite informações, status e dados de registro dos trabalhadores.</p>
       </a>
-
-      <a href="gerenciar_servicos.html" class="dashboard-card">
-        <div class="card-icon">🛠️</div>
-        <h3 class="card-title">Gerenciar Serviços</h3>
+      <a href="gerenciar_fazendas" class="dashboard-card">
+        <div class="card-icon">🏞️</div><h3 class="card-title">Fazendas</h3>
+        <p class="card-description">Cadastre e gerencie as fazendas e propriedades rurais.</p>
+      </a>
+      <a href="gerenciar_servicos" class="dashboard-card">
+        <div class="card-icon">🛠️</div><h3 class="card-title">Serviços</h3>
         <p class="card-description">Defina os tipos de serviço, seus preços padrão e status no sistema.</p>
       </a>
-
-      <a href="gerenciar_trabalhadores.html" class="dashboard-card">
-        <div class="card-icon">👨‍👩‍👧‍👦</div>
-        <h3 class="card-title">Gerenciar Trabalhadores</h3>
-        <p class="card-description">Adicione novos trabalhadores, edite informações, status e dados de registro.</p>
-      </a>
     </main>
-    
-    <footer class="logout-footer">
-      <button id="logout-button">Sair do Sistema</button>
-    </footer>
+    <footer class="logout-footer"><button id="logout-button">Sair do Sistema</button></footer>
   </div>
-
   <script>
     document.getElementById('logout-button').addEventListener('click', () => {
-      if (confirm('Você tem certeza que deseja sair do sistema?')) {
-        window.location.href = 'index.html';
-      }
+      if (confirm('Tem certeza que deseja sair?')) window.location.href = '/';
     });
   </script>
 </body>

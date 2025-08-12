@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Sistema de Controle Agrícola</title>
   <style>
-    /* --- ESTILOS GERAIS --- */
     body { 
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       margin: 0;
@@ -14,29 +13,22 @@
     * {
       box-sizing: border-box;
     }
-
-    /* --- ESTILOS PARA O NOVO LAYOUT DE TELA DIVIDIDA --- */
     .split-screen-container {
       display: flex;
       min-height: 100vh;
     }
-
     .info-pane {
-      flex: 3; /* O painel de informação ocupa mais espaço */
+      flex: 3;
       display: flex;
       justify-content: center;
       align-items: center;
       padding: 40px;
       color: white;
-      
-      /* Imagem de fundo */
       background-image: url('https://images.unsplash.com/photo-1620200423726-35343171d370?q=80&w=1974&auto=format&fit=crop');
       background-size: cover;
       background-position: center;
-      position: relative; /* Necessário para o overlay */
+      position: relative;
     }
-
-    /* Overlay escuro para melhorar a legibilidade do texto */
     .info-pane::before {
       content: '';
       position: absolute;
@@ -47,7 +39,6 @@
       background-color: rgba(0, 0, 0, 0.5);
       z-index: 1;
     }
-
     .info-content {
       position: relative;
       z-index: 2;
@@ -62,17 +53,14 @@
         font-size: 1.1rem;
         line-height: 1.6;
     }
-
     .login-pane {
-      flex: 2; /* O painel de login ocupa menos espaço */
+      flex: 2;
       display: flex;
       justify-content: center;
       align-items: center;
       background-color: #f4f7f6;
       padding: 40px;
     }
-    
-    /* --- ESTILOS DO CARD DE LOGIN (REAPROVEITADOS) --- */
     .login-card {
       background-color: white;
       padding: 30px 40px;
@@ -127,61 +115,58 @@
     .hidden {
       display: none;
     }
-
-    /* --- ESTILOS PARA TELAS MENORES (CELULARES) --- */
     @media (max-width: 768px) {
-      .split-screen-container {
-        flex-direction: column;
-      }
-      .info-pane {
-        flex: none; /* Remove a proporção */
-        min-height: 250px;
-      }
-      .login-pane {
-        flex: none;
-      }
+      .split-screen-container { flex-direction: column; }
+      .info-pane { flex: none; min-height: 250px; }
+      .login-pane { flex: none; }
     }
-
   </style>
 </head>
 <body>
 
   <div class="split-screen-container">
-    
     <section class="info-pane">
       <div class="info-content">
         <h1>Sistema de Controle Agrícola</h1>
-        <p>Centralize e gerencie com eficiência todos os registros de trabalho, fazendas, serviços e pagamentos em um único lugar. Tenha o controle total da sua operação na palma da sua mão.</p>
+        <p>Centralize e gerencie com eficiência todos os registros de trabalho, fazendas, serviços e pagamentos em um único lugar.</p>
       </div>
     </section>
-
     <section class="login-pane">
       <div class="login-card">
         <h2>Acesso ao Sistema</h2>
         <form id="login-form">
-          <div><label for="login">Login</label><input type="text" id="login" required></div>
-          <div><label for="password">Senha</label><input type="password" id="password" required></div>
+          <div>
+            <label for="login">Login</label>
+            <input type="text" id="login" required>
+          </div>
+          <div>
+            <label for="password">Senha</label>
+            <input type="password" id="password" required>
+          </div>
           <div id="error-message" class="error-message hidden"></div>
           <button type="submit">Entrar</button>
         </form>
       </div>
     </section>
-
   </div>
 
   <script>
+    // Referências garantidas para os elementos do HTML
     const form = document.getElementById('login-form');
     const loginInput = document.getElementById('login');
     const passwordInput = document.getElementById('password');
     const errorMessage = document.getElementById('error-message');
 
+    // Se já houver um token, redireciona para o dashboard
     if (localStorage.getItem('authToken')) {
         window.location.href = 'dashboard.html';
     }
 
     form.addEventListener('submit', async (e) => {
+      console.log('O botão Entrar foi clicado! A função de login iniciou.');
       e.preventDefault();
       errorMessage.classList.add('hidden');
+      
       const login = loginInput.value;
       const senha = passwordInput.value;
 
@@ -191,7 +176,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ login, senha })
         });
+
         const data = await response.json();
+
         if (!response.ok) {
           throw new Error(data.message || 'Erro de autenticação');
         }

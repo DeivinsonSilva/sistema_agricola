@@ -35,27 +35,24 @@ UserSchema.pre('save', async function(next) {
 });
 const User = mongoose.model('User', UserSchema);
 
-// --- Schemas de Validação com Zod ---
+// --- Schemas de Validação Zod ---
 const userSchema = z.object({
     nome: z.string({ required_error: "O nome é obrigatório." }).min(3, { message: "O nome deve ter no mínimo 3 caracteres." }),
     login: z.string().min(3, { message: "O login deve ter no mínimo 3 caracteres." }),
     senha: z.string().min(6, { message: "A senha deve ter no mínimo 6 caracteres." }),
-    tipo: z.enum(['Admin', 'Operador'], { errorMap: () => ({ message: "O tipo de usuário é inválido." }) })
+    tipo: z.enum(['Admin', 'Operador'])
 });
-
 const fazendaSchema = z.object({
     nome: z.string().min(1, { message: "O nome da fazenda é obrigatório." }),
     proprietario: z.string().optional(),
     cidade: z.string().optional(),
     ativa: z.boolean()
 });
-
 const servicoSchema = z.object({
     nome: z.string().min(1, { message: "O nome do serviço é obrigatório." }),
     preco: z.number({ required_error: "O preço é obrigatório." }).positive({ message: "O preço deve ser um número positivo." }),
     ativo: z.boolean()
 });
-
 const trabalhadorSchema = z.object({
     nome: z.string().min(3, { message: "O nome do trabalhador é obrigatório." }),
     ativo: z.boolean(),
@@ -64,7 +61,10 @@ const trabalhadorSchema = z.object({
     numeroFilhos: z.number().int().min(0).default(0)
 });
 
-// --- Middleware de Validação Reutilizável ---
+// --- Middlewares ---
+const asyncHandler = fn => (req, res, next) => {
+    return Promise.resolve(fn(req, res, next)).catch(next);
+};
 const validate = (schema) => (req, res, next) => {
     try {
         schema.parse(req.body);
@@ -73,8 +73,6 @@ const validate = (schema) => (req, res, next) => {
         return res.status(400).json({ errors: e.errors });
     }
 };
-
-// --- Middlewares de Autenticação e Autorização ---
 const verificarToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -90,73 +88,62 @@ const apenasAdmin = (req, res, next) => {
     if (req.user && req.user.tipo === 'Admin') {
         next();
     } else {
-        res.status(403).json({ message: 'Acesso negado. Requer privilégios de administrador.' });
+        res.status(403).json({ message: 'Acesso negado.' });
     }
 };
 
-// --- Rotas da API (Endpoints) ---
-
-// Rota de Login
-app.post('/api/login', async (req, res) => {
+// --- Rotas da API ---
+app.post('/api/login', asyncHandler(async (req, res) => {
     const { login, senha } = req.body;
     const user = await User.findOne({ login });
     if (!user) return res.status(400).json({ message: 'Login ou senha inválidos.' });
     const senhaValida = await bcrypt.compare(senha, user.senha);
     if (!senhaValida) return res.status(400).json({ message: 'Login ou senha inválidos.' });
     const jwtSecret = process.env.JWT_SECRET || 'seu_segredo_super_secreto';
-    const token = jwt.sign(
-        { id: user._id, nome: user.nome, tipo: user.tipo },
-        jwtSecret,
-        { expiresIn: '8h' }
-    );
+    const token = jwt.sign({ id: user._id, nome: user.nome, tipo: user.tipo }, jwtSecret, { expiresIn: '8h' });
     res.json({ token, user: { nome: user.nome, tipo: user.tipo } });
-});
+}));
 
-// CRUD para Usuários
-app.get('/api/users', verificarToken, apenasAdmin, async (req, res) => res.json(await User.find().select('-senha')));
-app.post('/api/users', validate(userSchema), async (req, res, next) => {
+app.get('/api/users', verificarToken, apenasAdmin, asyncHandler(async (req, res) => res.json(await User.find().select('-senha'))));
+app.post('/api/users', validate(userSchema), asyncHandler(async (req, res, next) => {
     const userCount = await User.countDocuments();
     if (userCount === 0) return next();
     verificarToken(req, res, () => apenasAdmin(req, res, next));
-}, async (req, res) => res.status(201).json(await new User(req.body).save()));
-app.put('/api/users/:id', verificarToken, apenasAdmin, async (req, res) => {
+}), asyncHandler(async (req, res) => res.status(201).json(await new User(req.body).save())));
+app.put('/api/users/:id', verificarToken, apenasAdmin, asyncHandler(async (req, res) => {
     const { nome, login, tipo } = req.body;
     res.json(await User.findByIdAndUpdate(req.params.id, { nome, login, tipo }, { new: true }));
-});
-app.delete('/api/users/:id', verificarToken, apenasAdmin, async (req, res) => res.json(await User.findByIdAndDelete(req.params.id)));
+}));
+app.delete('/api/users/:id', verificarToken, apenasAdmin, asyncHandler(async (req, res) => res.json(await User.findByIdAndDelete(req.params.id))));
 
-// CRUD para Fazendas com Validação
-app.get('/api/fazendas', verificarToken, async (req, res) => res.json(await Fazenda.find()));
-app.post('/api/fazendas', verificarToken, validate(fazendaSchema), async (req, res) => res.status(201).json(await new Fazenda(req.body).save()));
-app.put('/api/fazendas/:id', verificarToken, validate(fazendaSchema.partial()), async (req, res) => res.json(await Fazenda.findByIdAndUpdate(req.params.id, req.body, { new: true })));
-app.delete('/api/fazendas/:id', verificarToken, async (req, res) => res.json(await Fazenda.findByIdAndDelete(req.params.id)));
+app.get('/api/fazendas', verificarToken, asyncHandler(async (req, res) => res.json(await Fazenda.find())));
+app.post('/api/fazendas', verificarToken, validate(fazendaSchema), asyncHandler(async (req, res) => res.status(201).json(await new Fazenda(req.body).save())));
+app.put('/api/fazendas/:id', verificarToken, validate(fazendaSchema.partial()), asyncHandler(async (req, res) => res.json(await Fazenda.findByIdAndUpdate(req.params.id, req.body, { new: true }))));
+app.delete('/api/fazendas/:id', verificarToken, asyncHandler(async (req, res) => res.json(await Fazenda.findByIdAndDelete(req.params.id))));
 
-// CRUD para Serviços com Validação
-app.get('/api/servicos', verificarToken, async (req, res) => res.json(await Servico.find()));
-app.post('/api/servicos', verificarToken, validate(servicoSchema), async (req, res) => res.status(201).json(await new Servico(req.body).save()));
-app.put('/api/servicos/:id', verificarToken, validate(servicoSchema.partial()), async (req, res) => res.json(await Servico.findByIdAndUpdate(req.params.id, req.body, { new: true })));
-app.delete('/api/servicos/:id', verificarToken, async (req, res) => res.json(await Servico.findByIdAndDelete(req.params.id)));
+app.get('/api/servicos', verificarToken, asyncHandler(async (req, res) => res.json(await Servico.find())));
+app.post('/api/servicos', verificarToken, validate(servicoSchema), asyncHandler(async (req, res) => res.status(201).json(await new Servico(req.body).save())));
+app.put('/api/servicos/:id', verificarToken, validate(servicoSchema.partial()), asyncHandler(async (req, res) => res.json(await Servico.findByIdAndUpdate(req.params.id, req.body, { new: true }))));
+app.delete('/api/servicos/:id', verificarToken, asyncHandler(async (req, res) => res.json(await Servico.findByIdAndDelete(req.params.id))));
 
-// CRUD para Trabalhadores com Validação
-app.get('/api/trabalhadores', verificarToken, async (req, res) => res.json(await Trabalhador.find()));
-app.post('/api/trabalhadores', verificarToken, validate(trabalhadorSchema), async (req, res) => res.status(201).json(await new Trabalhador(req.body).save()));
-app.put('/api/trabalhadores/:id', verificarToken, validate(trabalhadorSchema.partial()), async (req, res) => res.json(await Trabalhador.findByIdAndUpdate(req.params.id, req.body, { new: true })));
-app.delete('/api/trabalhadores/:id', verificarToken, async (req, res) => res.json(await Trabalhador.findByIdAndDelete(req.params.id)));
+app.get('/api/trabalhadores', verificarToken, asyncHandler(async (req, res) => res.json(await Trabalhador.find())));
+app.post('/api/trabalhadores', verificarToken, validate(trabalhadorSchema), asyncHandler(async (req, res) => res.status(201).json(await new Trabalhador(req.body).save())));
+app.put('/api/trabalhadores/:id', verificarToken, validate(trabalhadorSchema.partial()), asyncHandler(async (req, res) => res.json(await Trabalhador.findByIdAndUpdate(req.params.id, req.body, { new: true }))));
+app.delete('/api/trabalhadores/:id', verificarToken, asyncHandler(async (req, res) => res.json(await Trabalhador.findByIdAndDelete(req.params.id))));
 
-// Rotas de Registros e Folha de Pagamento
-app.post('/api/registros', verificarToken, async (req, res) => res.status(201).json(await RegistroDiario.insertMany(req.body)));
-app.get('/api/registros/por-mes', verificarToken, async (req, res) => {
+app.post('/api/registros', verificarToken, asyncHandler(async (req, res) => res.status(201).json(await RegistroDiario.insertMany(req.body))));
+app.get('/api/registros/por-mes', verificarToken, asyncHandler(async (req, res) => {
     const { ano, mes } = req.query;
     if (!ano || !mes) return res.status(400).json({ message: 'Ano e mês são obrigatórios.' });
     const regexData = new RegExp(`^${ano}-${mes}-`);
     res.json(await RegistroDiario.find({ data: { $regex: regexData } }).sort({ data: 1 }));
-});
-app.get('/api/registros/por-dia', verificarToken, async (req, res) => {
+}));
+app.get('/api/registros/por-dia', verificarToken, asyncHandler(async (req, res) => {
     const { data } = req.query;
     if (!data) return res.status(400).json({ message: 'A data é obrigatória.' });
     res.json(await RegistroDiario.find({ data: data }).sort({ nome: 1 }));
-});
-app.get('/api/folha-pagamento', verificarToken, async (req, res) => {
+}));
+app.get('/api/folha-pagamento', verificarToken, asyncHandler(async (req, res) => {
     const { dataInicio, dataFim, tipo } = req.query;
     if (!dataInicio || !dataFim || !tipo) return res.status(400).json({ message: 'Datas e tipo de trabalhador são obrigatórios.' });
     const todosTrabalhadores = await Trabalhador.find();
@@ -174,13 +161,16 @@ app.get('/api/folha-pagamento', verificarToken, async (req, res) => {
         else payrollData[reg.nome].dias[reg.data] = (payrollData[reg.nome].dias[reg.data] || 0) + valorDiario;
     });
     res.json(payrollData);
+}));
+
+// Middleware de Tratamento de Erros
+app.use((err, req, res, next) => {
+    console.error("[ERRO NÃO TRATADO]", err);
+    res.status(500).json({ message: "Ocorreu um erro interno inesperado no servidor." });
 });
 
-// Inicia o servidor localmente
 if (!process.env.VERCEL_ENV) {
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => console.log(`🚀 Servidor local pronto em http://localhost:${PORT}`));
 }
-
-// Exporta o app para a Vercel
 module.exports = app;

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup do Primeiro Usuário</title>
+    <style>
+        body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f7f6; margin: 0; }
+        .setup-card { background-color: white; padding: 30px 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h1 { color: #0056b3; text-align: center; }
+        p { color: #666; text-align: center; }
+        label { display: block; margin-top: 15px; font-weight: 600; }
+        input { width: 100%; padding: 12px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; background-color: #28a745; color: white; font-size: 16px; }
+        .message { padding: 10px; border-radius: 5px; margin-top: 20px; text-align: center; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .success { background-color: #d4edda; color: #155724; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="setup-card">
+        <h1>Configuração Inicial</h1>
+        <p>Crie o primeiro usuário Administrador do sistema. Esta página só pode ser usada uma vez.</p>
+        <form id="setup-form">
+            <div><label for="nome">Nome Completo:</label><input type="text" id="nome" required></div>
+            <div><label for="login">Login:</label><input type="text" id="login" required></div>
+            <div><label for="senha">Senha:</label><input type="password" id="senha" required></div>
+            <div id="message-box" class="message hidden"></div>
+            <button type="submit">Criar Usuário Admin</button>
+        </form>
+    </div>
+    <script>
+        const form = document.getElementById('setup-form');
+        const messageBox = document.getElementById('message-box');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            messageBox.classList.add('hidden');
+
+            const userData = {
+                nome: document.getElementById('nome').value,
+                login: document.getElementById('login').value,
+                senha: document.getElementById('senha').value,
+            };
+
+            try {
+                const response = await fetch('/api/setup/primeiro-usuario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Ocorreu um erro.');
+                }
+
+                messageBox.textContent = 'Admin criado com sucesso! Redirecionando para a tela de login em 3 segundos...';
+                messageBox.className = 'message success';
+                form.style.display = 'none';
+
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 3000);
+
+            } catch (error) {
+                messageBox.textContent = error.message;
+                messageBox.className = 'message error';
+            } finally {
+                messageBox.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

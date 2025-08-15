@@ -4,17 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel - Sistema Agrícola</title>
+  <script src="https://unpkg.com/feather-icons"></script>
   <style>
-    /* Estilos base (outros estilos virão do header/footer) */
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
     .container { max-width: 1200px; margin: auto; padding: 2rem; }
     h1 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 30px; }
     .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
     .dashboard-card { display: block; background-color: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); text-decoration: none; color: inherit; transition: all 0.2s ease-in-out; }
     .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    .card-title { font-size: 1.25rem; color: #0056b3; margin-top: 0; margin-bottom: 15px; }
+    .card-title { font-size: 1.25rem; color: #0056b3; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
     .card-description { font-size: 0.9rem; color: #555; }
-    .admin-only-card { display: none; } /* Admin cards começam escondidos */
+    .admin-only-card { display: none; }
+    /* Estilo para os ícones */
+    .feather { width: 20px; height: 20px; stroke-width: 2.5; }
   </style>
 </head>
 <body>
@@ -26,36 +28,36 @@
     
     <main class="dashboard-grid">
       <a href="registro_diario.html" class="dashboard-card">
-        <h3 class="card-title">Registro Diário</h3>
+        <h3 class="card-title"><i data-feather="edit-3"></i> Registro Diário</h3>
         <p class="card-description">Lance a produção, presenças e faltas dos trabalhadores no campo.</p>
       </a>
       <a href="folha_pagamento.html" class="dashboard-card">
-        <h3 class="card-title">Folha de Pagamento</h3>
+        <h3 class="card-title"><i data-feather="dollar-sign"></i> Folha de Pagamento</h3>
         <p class="card-description">Gere a folha para registrados e não registrados com base nos lançamentos.</p>
       </a>
       <a href="relatorios.html" class="dashboard-card">
-        <h3 class="card-title">Relatórios</h3>
+        <h3 class="card-title"><i data-feather="bar-chart-2"></i> Relatórios</h3>
         <p class="card-description">Exporte os registros de trabalho mensais ou diários em formato PDF.</p>
       </a>
 
       <a href="gerenciar_fazendas.html" class="dashboard-card admin-only-card">
-        <h3 class="card-title">Gerenciar Fazendas</h3>
+        <h3 class="card-title"><i data-feather="home"></i> Gerenciar Fazendas</h3>
         <p class="card-description">Cadastre e gerencie as fazendas e propriedades rurais.</p>
       </a>
       <a href="gerenciar_servicos.html" class="dashboard-card admin-only-card">
-        <h3 class="card-title">Gerenciar Serviços</h3>
+        <h3 class="card-title"><i data-feather="tool"></i> Gerenciar Serviços</h3>
         <p class="card-description">Defina os tipos de serviço e seus preços padrão.</p>
       </a>
       <a href="gerenciar_trabalhadores.html" class="dashboard-card admin-only-card">
-        <h3 class="card-title">Gerenciar Trabalhadores</h3>
+        <h3 class="card-title"><i data-feather="users"></i> Gerenciar Trabalhadores</h3>
         <p class="card-description">Adicione e gerencie os dados dos trabalhadores.</p>
       </a>
       <a href="gerenciar_usuarios.html" class="dashboard-card admin-only-card">
-        <h3 class="card-title">Gerenciar Usuários</h3>
+        <h3 class="card-title"><i data-feather="key"></i> Gerenciar Usuários</h3>
         <p class="card-description">Adicione, edite e defina permissões para os usuários do sistema.</p>
       </a>
       <a href="gerenciar_banco.html" class="dashboard-card admin-only-card">
-        <h3 class="card-title">Gerenciar Banco de Dados</h3>
+        <h3 class="card-title"><i data-feather="database"></i> Gerenciar Banco de Dados</h3>
         <p class="card-description">Veja estatísticas e limpe os dados do banco.</p>
       </a>
 
@@ -68,6 +70,9 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      // Ativa os ícones Feather
+      feather.replace();
+
       const user = JSON.parse(localStorage.getItem('userInfo'));
       if (user && user.tipo === 'Admin') {
         const adminCards = document.querySelectorAll('.admin-only-card');

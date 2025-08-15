@@ -70,7 +70,6 @@
   <script src="layout.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Proteção de página: só permite Admins
       const user = JSON.parse(localStorage.getItem('userInfo'));
       if (!user || user.tipo !== 'Admin') {
         document.getElementById('content-container').innerHTML = '<h1>Acesso Negado</h1><p>Você não tem permissão para visualizar esta página.</p>';
@@ -99,6 +98,7 @@
         tableBody.innerHTML = '';
         stats.collections.forEach(col => {
           const row = tableBody.insertRow();
+          // CORREÇÃO AQUI: o nome da coleção é passado para a função
           row.innerHTML = `
             <td>${col.name}</td>
             <td>${col.count}</td>
@@ -116,12 +116,14 @@
     async function limparTabela(collectionName) {
       if (!confirm(`Você tem certeza que deseja apagar TODOS os dados da tabela '${collectionName}'? Esta ação é irreversível.`)) return;
       try {
+        // CORREÇÃO AQUI: O nome da coleção é usado na URL
         const response = await fetch(`/api/db-collections/${collectionName}`, {
           method: 'DELETE',
           headers: getAuthHeader()
         });
-        if (!response.ok) throw new Error('Falha ao limpar a tabela.');
-        alert(`Tabela '${collectionName}' limpa com sucesso!`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Falha ao limpar a tabela.');
+        alert(result.message);
         fetchStats();
       } catch (err) {
         alert(err.message);
@@ -137,8 +139,9 @@
                 method: 'DELETE',
                 headers: getAuthHeader()
             });
-            if (!response.ok) throw new Error('Falha ao limpar o banco de dados.');
-            alert('Todas as tabelas foram limpas com sucesso!');
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Falha ao limpar o banco de dados.');
+            alert(result.message);
             fetchStats();
         } catch (err) {
             alert(err.message);

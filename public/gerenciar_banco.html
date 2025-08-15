@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento do Banco de Dados</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 900px; margin: auto; padding: 2rem; }
+    h1, h2 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    .card { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 30px; }
+    .list-group { list-style-type: none; padding: 0; }
+    .list-group-item { padding: 1rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .list-group-item:last-child { border-bottom: none; }
+    .badge { padding: 0.4rem 0.6rem; border-radius: 5px; color: white; font-weight: bold; }
+    .badge-primary { background-color: #007BFF; }
+    .badge-secondary { background-color: #6c757d; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 12px; text-align: left; }
+    th { background-color: #e9ecef; }
+    button { padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; font-weight: bold; border: none; }
+    .btn-danger { background-color: #dc3545; color: white; }
+    .btn-outline-danger { background-color: transparent; border: 1px solid #dc3545; color: #dc3545; }
+    .btn-outline-danger:hover { background-color: #dc3545; color: white; }
+    .danger-zone { border: 2px solid #f5c6cb; background-color: #f8d7da; }
+    .danger-zone h2 { color: #721c24; border: none; }
+  </style>
+</head>
+<body>
+
+  <header id="header-placeholder"></header>
+
+  <div class="container">
+    <h1>Status e Gerenciamento do Banco de Dados</h1>
+
+    <div id="alert-container"></div>
+    <div id="content-container">
+      <div class="card">
+        <h2>Informações Gerais</h2>
+        <ul class="list-group">
+          <li class="list-group-item">
+            <span>Nome do Banco de Dados:</span>
+            <span id="db-name" class="badge badge-primary">Carregando...</span>
+          </li>
+          <li class="list-group-item">
+            <span>Espaço Total Ocupado:</span>
+            <span id="db-size" class="badge badge-secondary">Carregando...</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Tabelas (Coleções)</h2>
+        <table id="collections-table">
+          <thead><tr><th>Nome da Tabela</th><th>Quantidade de Registros</th><th>Ações</th></tr></thead>
+          <tbody><tr><td colspan="3">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card danger-zone">
+        <h2>Zona de Perigo</h2>
+        <p>A ação abaixo é irreversível e irá apagar <strong>TODOS</strong> os registros de trabalho, fazendas, serviços e trabalhadores. Apenas os usuários do sistema serão mantidos.</p>
+        <button id="btn-limpar-tudo" class="btn-danger">Limpar Todas as Tabelas</button>
+      </div>
+    </div>
+  </div>
+
+  <footer id="footer-placeholder"></footer>
+
+  <script src="layout.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Proteção de página: só permite Admins
+      const user = JSON.parse(localStorage.getItem('userInfo'));
+      if (!user || user.tipo !== 'Admin') {
+        document.getElementById('content-container').innerHTML = '<h1>Acesso Negado</h1><p>Você não tem permissão para visualizar esta página.</p>';
+        return;
+      }
+      fetchStats();
+    });
+
+    const getAuthHeader = (isPostOrPut = false) => {
+        const token = localStorage.getItem('authToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        if (isPostOrPut) headers['Content-Type'] = 'application/json';
+        return headers;
+    };
+
+    async function fetchStats() {
+      try {
+        const response = await fetch('/api/db-stats', { headers: getAuthHeader() });
+        if (!response.ok) throw new Error('Falha ao buscar estatísticas do banco de dados.');
+        const stats = await response.json();
+        
+        document.getElementById('db-name').textContent = stats.dbName;
+        document.getElementById('db-size').textContent = `${stats.storageSizeMB} MB`;
+
+        const tableBody = document.querySelector('#collections-table tbody');
+        tableBody.innerHTML = '';
+        stats.collections.forEach(col => {
+          const row = tableBody.insertRow();
+          row.innerHTML = `
+            <td>${col.name}</td>
+            <td>${col.count}</td>
+            <td>
+              <button class="btn-outline-danger" onclick="limparTabela('${col.name}')">Limpar Tabela</button>
+            </td>
+          `;
+        });
+
+      } catch (error) {
+        document.getElementById('alert-container').innerHTML = `<p style="color:red; font-weight:bold;">${error.message}</p>`;
+      }
+    }
+
+    async function limparTabela(collectionName) {
+      if (!confirm(`Você tem certeza que deseja apagar TODOS os dados da tabela '${collectionName}'? Esta ação é irreversível.`)) return;
+      try {
+        const response = await fetch(`/api/db-collections/${collectionName}`, {
+          method: 'DELETE',
+          headers: getAuthHeader()
+        });
+        if (!response.ok) throw new Error('Falha ao limpar a tabela.');
+        alert(`Tabela '${collectionName}' limpa com sucesso!`);
+        fetchStats();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    
+    document.getElementById('btn-limpar-tudo').addEventListener('click', async () => {
+        if (!confirm('ATENÇÃO: AÇÃO IRREVERSÍVEL.\\n\\nVocê está prestes a apagar TODOS os dados de trabalho, fazendas, serviços e trabalhadores. Deseja continuar?')) return;
+        if (!confirm('CONFIRMAÇÃO FINAL:\\n\\nTem absoluta certeza?')) return;
+        
+        try {
+            const response = await fetch('/api/db-collections-all', {
+                method: 'DELETE',
+                headers: getAuthHeader()
+            });
+            if (!response.ok) throw new Error('Falha ao limpar o banco de dados.');
+            alert('Todas as tabelas foram limpas com sucesso!');
+            fetchStats();
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+  </script>
+</body>
+</html>

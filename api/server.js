@@ -144,7 +144,7 @@ app.get('/api/registros/por-dia', verificarToken, asyncHandler(async (req, res) 
     res.json(await RegistroDiario.find({ data: data }).sort({ nome: 1 }));
 }));
 app.get('/api/folha-pagamento', verificarToken, asyncHandler(async (req, res) => {
-    const { dataInicio, dataFim, tipo } = req.query;
+    const { dataInicio, dataFim, tipo } = req.body;
     if (!dataInicio || !dataFim || !tipo) return res.status(400).json({ message: 'Datas e tipo de trabalhador são obrigatórios.' });
     const todosTrabalhadores = await Trabalhador.find();
     const trabalhadoresMap = new Map(todosTrabalhadores.map(t => [t.nome, { registrado: t.registrado, numeroFilhos: t.numeroFilhos }]));
@@ -162,6 +162,60 @@ app.get('/api/folha-pagamento', verificarToken, asyncHandler(async (req, res) =>
     });
     res.json(payrollData);
 }));
+
+// --- NOVAS ROTAS DE GERENCIAMENTO DO BANCO DE DADOS (APENAS ADMIN) ---
+
+// Rota para buscar estatísticas do banco de dados
+app.get('/api/db-stats', verificarToken, apenasAdmin, asyncHandler(async (req, res) => {
+    const stats = await mongoose.connection.db.stats();
+    const collections = await mongoose.connection.db.collections();
+    
+    const collectionData = [];
+    for (const collection of collections) {
+        // Ignora coleções internas do sistema
+        if (!collection.collectionName.startsWith('system.')) {
+            const count = await collection.countDocuments();
+            collectionData.push({
+                name: collection.collectionName,
+                count: count,
+            });
+        }
+    }
+
+    res.json({
+        dbName: mongoose.connection.name,
+        storageSizeMB: (stats.storageSize / 1024 / 1024).toFixed(2), // Convertido para Megabytes
+        collections: collectionData,
+    });
+}));
+
+// Rota para limpar uma coleção específica
+app.delete('/api/db-collections/:collectionName', verificarToken, apenasAdmin, asyncHandler(async (req, res) => {
+    const { collectionName } = req.params;
+    
+    // Constrói o nome do modelo capitalizando a primeira letra (ex: 'users' -> 'User')
+    const modelName = collectionName.charAt(0).toUpperCase() + collectionName.slice(1);
+
+    if (mongoose.models[modelName]) {
+        await mongoose.model(modelName).deleteMany({});
+        return res.json({ message: `Coleção ${modelName} limpa com sucesso.` });
+    }
+    
+    res.status(404).json({ message: `Coleção ${collectionName} não encontrada.` });
+}));
+
+// Rota para limpar TODAS as coleções (exceto a de usuários)
+app.delete('/api/db-collections-all', verificarToken, apenasAdmin, asyncHandler(async (req, res) => {
+    const modelNames = Object.keys(mongoose.models);
+    for (const modelName of modelNames) {
+        // Medida de segurança: NUNCA apagar a coleção de usuários por esta rota
+        if (modelName !== 'User') {
+            await mongoose.model(modelName).deleteMany({});
+        }
+    }
+    res.json({ message: 'Todas as coleções de dados (exceto usuários) foram limpas.' });
+}));
+
 
 // Middleware de Tratamento de Erros
 app.use((err, req, res, next) => {

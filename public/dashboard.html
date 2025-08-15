@@ -2,86 +2,78 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale-1.0">
-  <title>Sistema de Controle Agrícola - Início</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel - Sistema Agrícola</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
-    .container { max-width: 1200px; margin: auto; }
-    h1, h2, h3 { color: #0056b3; }
-    h1 { border-bottom: 2px solid #e9ecef; padding-bottom: 10px; text-align: center; }
-    h2.subtitle { text-align: center; color: #6c757d; margin-top: -10px; margin-bottom: 40px; }
-    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
+    /* Estilos base (outros estilos virão do header/footer) */
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 1200px; margin: auto; padding: 2rem; }
+    h1 { color: #0056b3; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 30px; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
     .dashboard-card { display: block; background-color: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); text-decoration: none; color: inherit; transition: all 0.2s ease-in-out; }
     .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    .card-icon { font-size: 3rem; text-align: center; margin-bottom: 15px; }
-    .card-title { text-align: center; font-size: 1.25rem; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-    .card-description { font-size: 0.9rem; color: #555; text-align: center; min-height: 60px; }
-    .logout-footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; }
-    #logout-button { background-color: #dc3545; color: white; padding: 10px 25px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; transition: background-color 0.2s; }
-    .hidden { display: none; }
+    .card-title { font-size: 1.25rem; color: #0056b3; margin-top: 0; margin-bottom: 15px; }
+    .card-description { font-size: 0.9rem; color: #555; }
+    .admin-only-card { display: none; } /* Admin cards começam escondidos */
   </style>
 </head>
 <body>
-  <script>
-    if (!localStorage.getItem('authToken')) { window.location.href = 'index.html'; }
-  </script>
-
+  
+  <header id="header-placeholder"></header>
+  
   <div class="container">
-    <h1>Painel de Controle</h1>
-    <h2 class="subtitle">Bem-vindo(a), <span id="user-name"></span>!</h2>
+    <h1>Painel Principal</h1>
+    
     <main class="dashboard-grid">
       <a href="registro_diario.html" class="dashboard-card">
-        <div class="card-icon">🗓️</div><h3 class="card-title">Registro Diário</h3>
+        <h3 class="card-title">Registro Diário</h3>
         <p class="card-description">Lance a produção, presenças e faltas dos trabalhadores no campo.</p>
       </a>
       <a href="folha_pagamento.html" class="dashboard-card">
-        <div class="card-icon">💰</div><h3 class="card-title">Folha de Pagamento</h3>
+        <h3 class="card-title">Folha de Pagamento</h3>
         <p class="card-description">Gere a folha para registrados e não registrados com base nos lançamentos.</p>
       </a>
       <a href="relatorios.html" class="dashboard-card">
-        <div class="card-icon">📊</div><h3 class="card-title">Relatórios</h3>
+        <h3 class="card-title">Relatórios</h3>
         <p class="card-description">Exporte os registros de trabalho mensais ou diários em formato PDF.</p>
       </a>
 
-      <a id="card-trabalhadores" href="gerenciar_trabalhadores.html" class="dashboard-card admin-card hidden">
-        <div class="card-icon">👨‍👩‍👧‍👦</div><h3 class="card-title">Trabalhadores</h3>
-        <p class="card-description">Adicione, edite informações, status e dados de registro dos trabalhadores.</p>
-      </a>
-      <a id="card-fazendas" href="gerenciar_fazendas.html" class="dashboard-card admin-card hidden">
-        <div class="card-icon">🏞️</div><h3 class="card-title">Fazendas</h3>
+      <a href="gerenciar_fazendas.html" class="dashboard-card admin-only-card">
+        <h3 class="card-title">Gerenciar Fazendas</h3>
         <p class="card-description">Cadastre e gerencie as fazendas e propriedades rurais.</p>
       </a>
-      <a id="card-servicos" href="gerenciar_servicos.html" class="dashboard-card admin-card hidden">
-        <div class="card-icon">🛠️</div><h3 class="card-title">Serviços</h3>
-        <p class="card-description">Defina os tipos de serviço, seus preços padrão e status no sistema.</p>
+      <a href="gerenciar_servicos.html" class="dashboard-card admin-only-card">
+        <h3 class="card-title">Gerenciar Serviços</h3>
+        <p class="card-description">Defina os tipos de serviço e seus preços padrão.</p>
       </a>
-      <a id="card-usuarios" href="gerenciar_usuarios.html" class="dashboard-card admin-card hidden">
-        <div class="card-icon">🔑</div><h3 class="card-title">Gerenciar Usuários</h3>
+      <a href="gerenciar_trabalhadores.html" class="dashboard-card admin-only-card">
+        <h3 class="card-title">Gerenciar Trabalhadores</h3>
+        <p class="card-description">Adicione e gerencie os dados dos trabalhadores.</p>
+      </a>
+      <a href="gerenciar_usuarios.html" class="dashboard-card admin-only-card">
+        <h3 class="card-title">Gerenciar Usuários</h3>
         <p class="card-description">Adicione, edite e defina permissões para os usuários do sistema.</p>
       </a>
+      <a href="gerenciar_banco.html" class="dashboard-card admin-only-card">
+        <h3 class="card-title">Gerenciar Banco de Dados</h3>
+        <p class="card-description">Veja estatísticas e limpe os dados do banco.</p>
+      </a>
+
     </main>
-    <footer class="logout-footer"><button id="logout-button">Sair do Sistema</button></footer>
   </div>
+  
+  <footer id="footer-placeholder"></footer>
+  
+  <script src="layout.js"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const user = JSON.parse(localStorage.getItem('userInfo'));
-        if (user) {
-            document.getElementById('user-name').textContent = user.nome;
-
-            // Lógica para mostrar os cards de Admin
-            if (user.tipo === 'Admin') {
-                const adminCards = document.querySelectorAll('.admin-card');
-                adminCards.forEach(card => card.classList.remove('hidden'));
-            }
-        }
-    });
-
-    document.getElementById('logout-button').addEventListener('click', () => {
-      if (confirm('Você tem certeza que deseja sair?')) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userInfo');
-        window.location.href = 'index.html';
+      const user = JSON.parse(localStorage.getItem('userInfo'));
+      if (user && user.tipo === 'Admin') {
+        const adminCards = document.querySelectorAll('.admin-only-card');
+        adminCards.forEach(card => {
+          card.style.display = 'block';
+        });
       }
     });
   </script>

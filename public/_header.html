@@ -1,0 +1,71 @@
+<style>
+    .main-header {
+        background-color: white;
+        padding: 0 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .main-header .logo {
+        font-weight: bold;
+        font-size: 1.25rem;
+        color: #0056b3;
+        text-decoration: none;
+    }
+    .main-nav a {
+        padding: 1.5rem 1rem;
+        display: inline-block;
+        text-decoration: none;
+        color: #333;
+        font-weight: 500;
+        border-bottom: 3px solid transparent;
+        transition: border-color 0.2s;
+    }
+    .main-nav a:hover {
+        color: #0056b3;
+    }
+    .main-nav a.active {
+        color: #007BFF;
+        border-bottom-color: #007BFF;
+    }
+    .user-menu {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .user-menu .user-name {
+        font-size: 0.9rem;
+        color: #555;
+    }
+    .logout-button {
+        background: none;
+        border: 1px solid #dc3545;
+        color: #dc3545;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+    }
+    .logout-button:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+</style>
+
+<header class="main-header">
+    <a href="dashboard.html" class="logo">Sistema Agrícola</a>
+    
+    <nav class="main-nav">
+        <a href="dashboard.html" data-navlink="/dashboard.html">Painel</a>
+        <a href="registro_diario.html" data-navlink="/registro_diario.html">Registro Diário</a>
+        <a href="relatorios.html" data-navlink="/relatorios.html">Relatórios</a>
+        <a href="folha_pagamento.html" data-navlink="/folha_pagamento.html">Folha de Pagamento</a>
+        </nav>
+
+    <div class="user-menu">
+        <span class="user-name">Bem-vindo(a), <strong id="header-user-name">Usuário</strong>!</span>
+        <button id="header-logout-button" class="logout-button">Sair</button>
+    </div>
+</header>
